@@ -1,12 +1,12 @@
 'use client'
 
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, Suspense, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect } from 'react'
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
@@ -154,5 +154,24 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="relative min-h-screen bg-[#0a0a0f] text-slate-100">
+          <div className="mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-10">
+            <div className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl">
+              <h1 className="text-2xl font-bold text-white">Set a new password</h1>
+              <p className="mt-2 text-sm text-slate-400">Loading reset session...</p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   )
 }

@@ -1,23 +1,26 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import {
   BarChart3, BriefcaseBusiness, Copy, ExternalLink, FolderGit2,
   Home, LayoutTemplate, LogOut, Rocket, Save, UserRound, X,
-  Plus, Trash2, Globe, MapPin,
-  Mail, Link2, Eye, TrendingUp, Layers, Zap, ChevronRight,
-  Star, Menu, CheckCircle2, AlertCircle, Sparkles
+  Plus, Trash2, Globe,
+  Link2, Eye, TrendingUp, Zap, ChevronRight,
+  Menu, CheckCircle2, AlertCircle, Sparkles, Activity,
+  Clock, ArrowUpRight, Code2
 } from 'lucide-react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Area, AreaChart } from 'recharts'
+import {
+  CartesianGrid, ResponsiveContainer, Tooltip,
+  XAxis, YAxis, Area, AreaChart, BarChart, Bar, Cell
+} from 'recharts'
 import type { Experience, PortfolioData, Profile, Project, Skill } from '@/types'
 import { isOptionalHttpUrl, isValidEmail, isValidHttpUrl, isValidUsername } from '@/lib/validation'
 
 type DashboardTab = 'overview' | 'profile' | 'skills' | 'projects' | 'experience' | 'template' | 'analytics'
-
-type ViewRow = { viewed_at: string }
+type ViewRow = { viewed_at: string; referrer?: string; country?: string; duration_seconds?: number }
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: Home },
@@ -29,23 +32,68 @@ const NAV_ITEMS = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ] as const
 
-// ─── Reusable primitives ───────────────────────────────────────────────────
+// ─── Ambient cursor light ─────────────────────────────────────────────────
+function AmbientCursor() {
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  const springX = useSpring(x, { stiffness: 50, damping: 18 })
+  const springY = useSpring(y, { stiffness: 50, damping: 18 })
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => { x.set(e.clientX); y.set(e.clientY) }
+    window.addEventListener('mousemove', move)
+    return () => window.removeEventListener('mousemove', move)
+  }, [x, y])
+
+  return (
+    <motion.div
+      style={{ left: springX, top: springY, translateX: '-50%', translateY: '-50%' }}
+      className="pointer-events-none fixed z-0 h-[600px] w-[600px] rounded-full"
+      aria-hidden
+    >
+      <div className="absolute inset-0 rounded-full bg-violet-600/[0.035] blur-[100px]" />
+    </motion.div>
+  )
+}
+
+// ─── Background atmosphere ────────────────────────────────────────────────
+function Background() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+      {/* Soft orbs */}
+      <div className="absolute -left-60 -top-60 h-[500px] w-[500px] animate-pulse rounded-full bg-violet-700/[0.07] blur-[120px]" style={{ animationDuration: '9s' }} />
+      <div className="absolute -right-40 top-1/4 h-[400px] w-[400px] animate-pulse rounded-full bg-indigo-600/[0.05] blur-[100px]" style={{ animationDuration: '13s', animationDelay: '3s' }} />
+      <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] -translate-x-1/2 animate-pulse rounded-full bg-violet-500/[0.04] blur-[100px]" style={{ animationDuration: '11s', animationDelay: '1.5s' }} />
+      {/* Subtle grid */}
+      <div className="absolute inset-0 opacity-[0.012]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(139,92,246,1) 1px, transparent 1px),linear-gradient(90deg, rgba(139,92,246,1) 1px, transparent 1px)`,
+          backgroundSize: '72px 72px',
+        }} />
+      {/* Vignette */}
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(7,7,13,0.6) 100%)' }} />
+    </div>
+  )
+}
+
+// ─── Primitives ───────────────────────────────────────────────────────────
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400">{label}</label>
+      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</label>
       {children}
       {error && (
-        <span className="flex items-center gap-1 text-xs text-rose-400">
+        <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }}
+          className="flex items-center gap-1 text-xs text-rose-400">
           <AlertCircle size={11} /> {error}
-        </span>
+        </motion.span>
       )}
     </div>
   )
 }
 
 const inputCls =
-  'w-full rounded-xl border border-white/8 bg-white/4 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-0 transition-all duration-200 focus:border-violet-500/60 focus:bg-white/6 focus:ring-2 focus:ring-violet-500/20 hover:border-white/12'
+  'w-full rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none transition-all duration-200 focus:border-violet-500/50 focus:bg-white/[0.04] focus:ring-2 focus:ring-violet-500/[0.12] hover:border-white/[0.10]'
 
 function StyledInput({ label, error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
   const el = <input className={inputCls} {...props} />
@@ -60,25 +108,23 @@ function StyledTextarea({ label, error, rows = 3, ...props }: React.TextareaHTML
 }
 
 function StyledSelect({ label, children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
-  const el = (
-    <select className={`${inputCls} cursor-pointer`} {...props}>
-      {children}
-    </select>
-  )
+  const el = <select className={`${inputCls} cursor-pointer`} {...props}>{children}</select>
   if (!label) return el
   return <Field label={label}>{el}</Field>
 }
 
 function Btn({
   children, variant = 'primary', size = 'md', loading, className = '', ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' | 'outline'; size?: 'sm' | 'md'; loading?: boolean }) {
-  const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed select-none'
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'ghost' | 'danger' | 'outline'; size?: 'sm' | 'md'; loading?: boolean
+}) {
+  const base = 'inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed select-none'
   const sizes = { sm: 'px-3 py-1.5 text-xs', md: 'px-4 py-2.5 text-sm' }
   const variants = {
-    primary: 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98]',
-    ghost: 'bg-white/5 text-zinc-300 border border-white/8 hover:bg-white/10 hover:text-white active:scale-[0.98]',
-    outline: 'border border-white/10 bg-transparent text-zinc-300 hover:bg-white/5 hover:text-white active:scale-[0.98]',
-    danger: 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 active:scale-[0.98]',
+    primary: 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/45 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.97]',
+    ghost: 'bg-white/[0.035] text-zinc-300 border border-white/[0.08] hover:bg-white/[0.07] hover:text-white active:scale-[0.97]',
+    outline: 'border border-white/10 bg-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-white active:scale-[0.97]',
+    danger: 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/18 active:scale-[0.97]',
   }
   return (
     <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} disabled={loading || props.disabled} {...props}>
@@ -87,36 +133,118 @@ function Btn({
   )
 }
 
-function StatCard({ label, value, icon: Icon, accent }: { label: string; value: number | string; icon: typeof Eye; accent: string }) {
+// ─── Animated counter ─────────────────────────────────────────────────────
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    const start = performance.now()
+    const duration = 1100
+    const from = 0
+    const raf = requestAnimationFrame(function step(now) {
+      const t = Math.min((now - start) / duration, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+      setDisplay(Math.round(from + (value - from) * ease))
+      if (t < 1) requestAnimationFrame(step)
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  return <>{display.toLocaleString()}</>
+}
+
+function StatCard({ label, value, icon: Icon, accent, trend }: {
+  label: string; value: number | string; icon: typeof Eye; accent: string; trend?: number
+}) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/6 bg-white/3 p-5">
-      <div className={`absolute -right-3 -top-3 h-16 w-16 rounded-full blur-2xl opacity-30 ${accent}`} />
-      <div className="flex items-start justify-between">
+    <motion.div whileHover={{ y: -3, scale: 1.015 }} transition={{ duration: 0.18 }}
+      className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
+      {/* Hover shine */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"
+        style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 60%)' }} />
+      {/* Corner accent glow */}
+      <div className={`absolute -right-5 -top-5 h-24 w-24 rounded-full blur-2xl opacity-15 group-hover:opacity-35 transition-opacity ${accent}`} />
+      <div className="relative flex items-start justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold text-white">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">{label}</p>
+          <p className="mt-2.5 text-[2rem] font-bold leading-none tracking-tight text-white">
+            {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+          </p>
+          {trend !== undefined && (
+            <div className={`mt-2 flex items-center gap-1 text-[11px] font-bold ${trend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <ArrowUpRight size={11} className={trend < 0 ? 'rotate-180' : ''} />
+              {Math.abs(trend)}% vs last week
+            </div>
+          )}
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${accent} bg-opacity-20`}>
-          <Icon size={18} className="text-white" />
+        <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent} bg-opacity-15 border border-white/[0.06] group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={16} className="text-white opacity-75" />
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
     return (
-      <div className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 shadow-2xl">
-        <p className="text-xs text-zinc-400">{label}</p>
-        <p className="mt-1 text-lg font-bold text-violet-300">{payload[0].value} views</p>
+      <div className="rounded-xl border border-white/[0.08] bg-zinc-950/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">{label}</p>
+        <p className="mt-1 text-xl font-bold text-violet-300">{payload[0].value}</p>
+        <p className="text-[10px] text-zinc-700">portfolio views</p>
       </div>
     )
   }
   return null
 }
 
-// ─── Inner component (uses useSearchParams) ────────────────────────────────
+// ─── Real analytics computation ───────────────────────────────────────────
+function useRealAnalytics(views: ViewRow[]) {
+  return useMemo(() => {
+    const now = new Date()
+
+    const last30 = Array.from({ length: 30 }).map((_, idx) => {
+      const date = new Date(now)
+      date.setDate(now.getDate() - (29 - idx))
+      const key = date.toISOString().slice(0, 10)
+      return {
+        date: key,
+        day: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        views: views.filter(e => e.viewed_at?.slice(0, 10) === key).length,
+      }
+    })
+
+    const last7 = last30.slice(-7).map(d => ({
+      ...d,
+      day: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    }))
+
+    const thisWeekTotal = last7.reduce((s, d) => s + d.views, 0)
+    const prevWeekTotal = last30.slice(-14, -7).reduce((s, d) => s + d.views, 0)
+    const weekTrend = prevWeekTotal === 0 ? 0 : Math.round(((thisWeekTotal - prevWeekTotal) / prevWeekTotal) * 100)
+
+    const todayKey = now.toISOString().slice(0, 10)
+    const todayViews = views.filter(v => v.viewed_at?.slice(0, 10) === todayKey).length
+
+    const durViews = views.filter(v => v.duration_seconds && v.duration_seconds > 0)
+    const avgDuration = durViews.length
+      ? Math.round(durViews.reduce((s, v) => s + (v.duration_seconds || 0), 0) / durViews.length)
+      : null
+
+    const dayTotals = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => ({
+      day: d,
+      views: views.filter(v => new Date(v.viewed_at).getDay() === i).length,
+    }))
+
+    const hourly = Array.from({ length: 24 }).map((_, h) => ({
+      hour: h,
+      label: h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`,
+      views: views.filter(v => new Date(v.viewed_at).getHours() === h).length,
+    }))
+
+    return { last30, last7, thisWeekTotal, weekTrend, todayViews, avgDuration, dayTotals, hourly }
+  }, [views])
+}
+
+// ─── Inner component ───────────────────────────────────────────────────────
 function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -133,6 +261,7 @@ function DashboardContent() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [analyticsRange, setAnalyticsRange] = useState<'7' | '30'>('7')
 
   const [profileForm, setProfileForm] = useState({
     full_name: '', username: '', bio: '', location: '',
@@ -152,7 +281,10 @@ function DashboardContent() {
         supabase.from('skills').select('*').eq('profile_id', profileData.id),
         supabase.from('projects').select('*').eq('profile_id', profileData.id).order('order_index'),
         supabase.from('experience').select('*').eq('profile_id', profileData.id).order('start_date', { ascending: false }),
-        supabase.from('portfolio_views').select('viewed_at').eq('profile_id', profileData.id),
+        // Real view data with all columns
+        supabase.from('portfolio_views')
+          .select('viewed_at, referrer, country, duration_seconds')
+          .eq('profile_id', profileData.id),
       ])
 
       setProfile(profileData as Profile)
@@ -172,22 +304,11 @@ function DashboardContent() {
     void loadDashboardData()
   }, [router, supabase])
 
-  const last7DaysData = useMemo(() => {
-    const now = new Date()
-    return Array.from({ length: 7 }).map((_, idx) => {
-      const date = new Date(now)
-      date.setDate(now.getDate() - (6 - idx))
-      const key = date.toISOString().slice(0, 10)
-      return {
-        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        views: views.filter((e) => e.viewed_at.slice(0, 10) === key).length,
-      }
-    })
-  }, [views])
-
+  const analytics = useRealAnalytics(views)
   const totalViews = views.length
-  const weekViews = last7DaysData.reduce((s, d) => s + d.views, 0)
-  const portfolioUrl = typeof window !== 'undefined' && profile?.username ? `${window.location.origin}/u/${profile.username}` : ''
+  const chartData = analyticsRange === '7' ? analytics.last7 : analytics.last30
+  const portfolioUrl = typeof window !== 'undefined' && profile?.username
+    ? `${window.location.origin}/u/${profile.username}` : ''
   const justPublished = searchParams.get('published') === '1'
 
   const isProfileFormValid = useMemo(() => (
@@ -276,131 +397,208 @@ function DashboardContent() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-violet-500" />
-          <p className="text-sm text-zinc-500">Loading workspace…</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#07070d]">
+        <Background />
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 flex flex-col items-center gap-5">
+          <div className="relative">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 shadow-xl shadow-violet-500/40 flex items-center justify-center">
+              <Code2 size={24} className="text-white" />
+            </div>
+            <div className="absolute inset-0 h-14 w-14 rounded-2xl border-2 border-violet-500/40 animate-ping" />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-white tracking-tight">DevFolio</p>
+            <p className="mt-1 text-xs text-zinc-600">Loading your workspace…</p>
+          </div>
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="h-1.5 w-1.5 rounded-full bg-violet-500/60 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s`, animationDuration: '1.2s' }} />
+            ))}
+          </div>
+        </motion.div>
       </div>
     )
   }
 
-  // ── No profile ───────────────────────────────────────────────────────────
+  // ── No profile ─────────────────────────────────────────────────────────
   if (!profile) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] p-6">
-        <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/8 bg-white/3 p-10 text-center backdrop-blur-sm">
-          <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-600/20 blur-3xl" />
-          <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-indigo-600/20 blur-3xl" />
+      <div className="flex min-h-screen items-center justify-center bg-[#07070d] p-6">
+        <Background />
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.02] p-10 text-center backdrop-blur-xl">
+          <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-600/12 blur-3xl" />
+          <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-indigo-600/12 blur-3xl" />
           <div className="relative">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-500/30">
-              <Sparkles size={28} className="text-white" />
-            </div>
+            <motion.div animate={{ rotate: [0, 6, -6, 0], scale: [1, 1.06, 1] }}
+              transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
+              className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 shadow-lg shadow-violet-500/40">
+              <Sparkles size={26} className="text-white" />
+            </motion.div>
             <h1 className="text-2xl font-bold text-white">Build your portfolio</h1>
-            <p className="mt-3 text-sm text-zinc-400 leading-relaxed">Complete onboarding to create your public portfolio. It takes just a few minutes.</p>
+            <p className="mt-3 text-sm text-zinc-500 leading-relaxed">Complete onboarding to create your public portfolio. Takes just a few minutes.</p>
             <div className="mt-8 flex flex-col gap-3">
               <Btn onClick={() => router.push('/onboarding')} className="w-full justify-center">
-                <Rocket size={16} /> Start Portfolio
+                <Rocket size={15} /> Start Portfolio
               </Btn>
               <Btn variant="ghost" onClick={handleLogout} className="w-full justify-center">
-                <LogOut size={16} /> Logout
+                <LogOut size={15} /> Logout
               </Btn>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     )
   }
 
   const initials = profile.full_name?.slice(0, 2)?.toUpperCase() || 'U'
 
-  // ── Tab content ──────────────────────────────────────────────────────────
+  // ── Tab content ────────────────────────────────────────────────────────
   const tabContent = {
+
     overview: (
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Views" value={totalViews} icon={Eye} accent="bg-violet-500" />
-          <StatCard label="This Week" value={weekViews} icon={TrendingUp} accent="bg-indigo-500" />
-          <StatCard label="Projects" value={projects.length} icon={FolderGit2} accent="bg-sky-500" />
-          <StatCard label="Skills" value={skills.length} icon={Zap} accent="bg-emerald-500" />
+      <div className="space-y-5">
+        {/* Stats */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'Total Views', value: totalViews, icon: Eye, accent: 'bg-violet-500', trend: analytics.weekTrend },
+            { label: 'This Week', value: analytics.thisWeekTotal, icon: TrendingUp, accent: 'bg-indigo-500' },
+            { label: 'Projects', value: projects.length, icon: FolderGit2, accent: 'bg-sky-500' },
+            { label: 'Skills', value: skills.length, icon: Zap, accent: 'bg-emerald-500' },
+          ].map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+              <StatCard {...s} />
+            </motion.div>
+          ))}
         </div>
 
-        {justPublished && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/8 p-5">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 size={20} className="text-emerald-400" />
+        {/* Published */}
+        <AnimatePresence>
+          {justPublished && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-5 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15">
+                  <CheckCircle2 size={15} className="text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-emerald-300">Portfolio is live!</p>
+                  <p className="text-xs text-emerald-600">Your portfolio is now public and tracking real visitors.</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Btn size="sm" variant="ghost" onClick={copyPortfolioLink}>
+                  {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />} {copied ? 'Copied!' : 'Copy URL'}
+                </Btn>
+                <Btn size="sm" onClick={() => window.open(portfolioUrl, '_blank')} disabled={!portfolioUrl}>
+                  <ExternalLink size={13} /> Open
+                </Btn>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* URL card */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
+          className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">Your Live URL</p>
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/[0.05] bg-black/25 px-4 py-3">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-500/15">
+              <Globe size={11} className="text-violet-400" />
+            </div>
+            <span className="flex-1 truncate font-mono text-sm text-zinc-300">{portfolioUrl || 'Complete onboarding to get your URL'}</span>
+            {portfolioUrl && <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Btn size="sm" variant="ghost" onClick={copyPortfolioLink} disabled={!portfolioUrl}>
+              {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />} {copied ? 'Copied!' : 'Copy'}
+            </Btn>
+            <Btn size="sm" onClick={() => window.open(portfolioUrl, '_blank')} disabled={!portfolioUrl}>
+              <ExternalLink size={13} /> Preview
+            </Btn>
+          </div>
+        </motion.div>
+
+        {/* Mini chart — only if there are real views */}
+        {totalViews > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}
+            className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-emerald-300">Portfolio published!</p>
-                <p className="text-xs text-emerald-500">Your portfolio is now live and public.</p>
+                <p className="text-sm font-bold text-white">Portfolio Traffic</p>
+                <p className="text-xs text-zinc-600">Last 7 days · real visitor data</p>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.05] bg-black/20 px-2.5 py-1.5">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" style={{ animationDuration: '2s' }} />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Live</span>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Btn size="sm" variant="ghost" onClick={copyPortfolioLink}>
-                {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                {copied ? 'Copied!' : 'Copy URL'}
-              </Btn>
-              <Btn size="sm" onClick={() => window.open(portfolioUrl, '_blank')} disabled={!portfolioUrl}>
-                <ExternalLink size={14} /> Preview
-              </Btn>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics.last7}>
+                  <defs>
+                    <linearGradient id="overviewGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                  <XAxis dataKey="day" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} width={22} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="views" stroke="#8b5cf6" strokeWidth={2}
+                    fill="url(#overviewGrad)" dot={{ fill: '#8b5cf6', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#a78bfa', strokeWidth: 0 }} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </motion.div>
         )}
 
-        <div className="rounded-2xl border border-white/6 bg-white/3 p-6">
-          <p className="mb-1 text-[11px] uppercase tracking-[0.15em] text-zinc-500">Live Portfolio URL</p>
-          <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/6 bg-black/30 px-4 py-3">
-            <Globe size={14} className="shrink-0 text-violet-400" />
-            <span className="flex-1 truncate text-sm text-zinc-300 font-mono">{portfolioUrl || 'Complete onboarding to get your URL'}</span>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Btn size="sm" variant="ghost" onClick={copyPortfolioLink} disabled={!portfolioUrl}>
-              {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />} {copied ? 'Copied!' : 'Copy URL'}
-            </Btn>
-            <Btn size="sm" onClick={() => window.open(portfolioUrl, '_blank')} disabled={!portfolioUrl}>
-              <ExternalLink size={14} /> Preview Portfolio
-            </Btn>
-            <Btn size="sm" variant="ghost" onClick={() => router.push('/onboarding')}>
-              <Rocket size={14} /> New Project
-            </Btn>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
+        {/* Quick-nav cards */}
+        <div className="grid gap-3 sm:grid-cols-3">
           {[
-            { tab: 'profile', icon: UserRound, label: 'Edit Profile', desc: 'Update your bio and links' },
-            { tab: 'projects', icon: FolderGit2, label: 'Manage Projects', desc: `${projects.length} projects added` },
-            { tab: 'skills', icon: Zap, label: 'Edit Skills', desc: `${skills.length} skills listed` },
-          ].map(item => (
-            <button key={item.tab} onClick={() => setActiveTab(item.tab as DashboardTab)}
-              className="group flex items-center gap-4 rounded-2xl border border-white/6 bg-white/3 p-5 text-left transition-all hover:border-violet-500/30 hover:bg-white/5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-zinc-400 transition group-hover:bg-violet-500/20 group-hover:text-violet-300">
-                <item.icon size={18} />
+            { tab: 'profile', icon: UserRound, label: 'Edit Profile', desc: 'Bio, links & visibility' },
+            { tab: 'projects', icon: FolderGit2, label: 'Projects', desc: `${projects.length} added` },
+            { tab: 'skills', icon: Zap, label: 'Skills', desc: `${skills.length} listed` },
+          ].map((item, i) => (
+            <motion.button key={item.tab}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.06 }}
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab(item.tab as DashboardTab)}
+              className="group flex items-center gap-3.5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-violet-500/20 backdrop-blur-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.05] bg-white/[0.03] text-zinc-600 transition-all group-hover:border-violet-500/20 group-hover:bg-violet-500/12 group-hover:text-violet-300">
+                <item.icon size={15} />
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-zinc-200 group-hover:text-white">{item.label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{item.desc}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-zinc-400 transition-colors group-hover:text-white">{item.label}</p>
+                <p className="mt-0.5 text-xs text-zinc-700">{item.desc}</p>
               </div>
-              <ChevronRight size={16} className="ml-auto shrink-0 text-zinc-700 transition group-hover:text-zinc-400" />
-            </button>
+              <ChevronRight size={13} className="shrink-0 text-zinc-800 transition-all group-hover:text-zinc-500 group-hover:translate-x-0.5" />
+            </motion.button>
           ))}
         </div>
       </div>
     ),
 
     profile: (
-      <div className="space-y-6">
-        {saveSuccess && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-300">
-            <CheckCircle2 size={16} /> Profile saved successfully!
-          </motion.div>
-        )}
-        <div className="rounded-2xl border border-white/6 bg-white/3 p-6">
-          <h3 className="mb-5 text-[11px] uppercase tracking-[0.18em] text-zinc-500">Basic Info</h3>
+      <div className="space-y-5">
+        <AnimatePresence>
+          {saveSuccess && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] px-4 py-3 text-sm font-bold text-emerald-300">
+              <CheckCircle2 size={14} /> Profile saved
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <h3 className="mb-5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">Basic Info</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <StyledInput label="Full Name" placeholder="Jane Doe" value={profileForm.full_name} error={profileErrors.full_name}
               onChange={e => { setProfileForm(p => ({ ...p, full_name: e.target.value })); setProfileErrors(p => ({ ...p, full_name: '' })) }} />
@@ -417,18 +615,18 @@ function DashboardContent() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/6 bg-white/3 p-6">
-          <h3 className="mb-5 text-[11px] uppercase tracking-[0.18em] text-zinc-500">Links</h3>
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <h3 className="mb-5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">Social Links</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { label: 'Website', key: 'website', icon: Globe, placeholder: 'https://yoursite.com' },
-              { label: 'GitHub', key: 'github_url', icon: Link2, placeholder: 'https://github.com/you' },
+              { label: 'GitHub', key: 'github_url', icon: Code2, placeholder: 'https://github.com/you' },
               { label: 'LinkedIn', key: 'linkedin_url', icon: Link2, placeholder: 'https://linkedin.com/in/you' },
               { label: 'Twitter / X', key: 'twitter_url', icon: Link2, placeholder: 'https://x.com/you' },
             ].map(({ label, key, icon: Icon, placeholder }) => (
               <Field key={key} label={label} error={profileErrors[key]}>
                 <div className="relative">
-                  <Icon size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Icon size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
                   <input className={`${inputCls} pl-9`} placeholder={placeholder}
                     value={(profileForm as any)[key]}
                     onChange={e => { setProfileForm(p => ({ ...p, [key]: e.target.value })); setProfileErrors(p => ({ ...p, [key]: '' })) }} />
@@ -440,13 +638,13 @@ function DashboardContent() {
 
         <div className="flex flex-wrap gap-3">
           <Btn onClick={saveProfile} loading={saving} disabled={!isProfileFormValid}>
-            <Save size={15} /> Save Profile
+            <Save size={14} /> Save Profile
           </Btn>
           <Btn variant="ghost" onClick={copyPortfolioLink} disabled={!portfolioUrl}>
-            {copied ? <CheckCircle2 size={15} /> : <Copy size={15} />} {copied ? 'Copied!' : 'Copy Link'}
+            {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />} {copied ? 'Copied!' : 'Copy Link'}
           </Btn>
           <Btn variant="ghost" onClick={() => window.open(portfolioUrl, '_blank')} disabled={!portfolioUrl}>
-            <Eye size={15} /> Preview
+            <Eye size={14} /> Preview
           </Btn>
         </div>
       </div>
@@ -454,11 +652,11 @@ function DashboardContent() {
 
     skills: (
       <div className="space-y-4">
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <AnimatePresence>
             {skills.map((skill, idx) => (
               <motion.div key={skill.id || `skill-${idx}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }}
-                className="grid gap-3 rounded-2xl border border-white/6 bg-white/3 p-4 sm:grid-cols-[1fr,140px,140px,36px]">
+                className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 backdrop-blur-sm sm:grid-cols-[1fr,140px,140px,36px]">
                 <StyledInput placeholder="Skill name (e.g. React)" value={skill.name}
                   onChange={e => setSkills(prev => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))} />
                 <StyledSelect value={skill.category}
@@ -470,24 +668,26 @@ function DashboardContent() {
                   {['Beginner', 'Intermediate', 'Expert'].map(v => <option key={v}>{v}</option>)}
                 </StyledSelect>
                 <button onClick={() => setSkills(prev => prev.filter((_, i) => i !== idx))}
-                  className="flex items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/8 text-rose-400 transition hover:bg-rose-500/20">
-                  <Trash2 size={14} />
+                  className="flex items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/[0.05] text-rose-400 hover:bg-rose-500/12 transition-colors">
+                  <Trash2 size={13} />
                 </button>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
         {skills.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-white/8 py-12 text-center">
-            <Zap size={24} className="mx-auto text-zinc-600" />
-            <p className="mt-3 text-sm text-zinc-500">No skills yet. Add your first one below.</p>
+          <div className="rounded-2xl border border-dashed border-white/[0.06] py-14 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02]">
+              <Zap size={18} className="text-zinc-700" />
+            </div>
+            <p className="mt-3 text-sm text-zinc-600">No skills yet. Add your first one.</p>
           </div>
         )}
         <div className="flex flex-wrap gap-3">
           <Btn variant="ghost" onClick={() => setSkills(prev => [...prev, { id: crypto.randomUUID(), profile_id: profile.id, name: '', category: 'Frontend', level: 'Intermediate' }])}>
-            <Plus size={15} /> Add Skill
+            <Plus size={13} /> Add Skill
           </Btn>
-          <Btn onClick={saveSkills} loading={saving}><Save size={15} /> Save Skills</Btn>
+          <Btn onClick={saveSkills} loading={saving}><Save size={13} /> Save</Btn>
         </div>
       </div>
     ),
@@ -497,12 +697,12 @@ function DashboardContent() {
         <AnimatePresence>
           {projects.map((project, idx) => (
             <motion.div key={project.id || `project-${idx}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }}
-              className="rounded-2xl border border-white/6 bg-white/3 p-5">
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-500">Project {idx + 1}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">Project {idx + 1}</span>
                 <button onClick={() => setProjects(prev => prev.filter((_, i) => i !== idx))}
-                  className="flex items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/8 px-2.5 py-1 text-xs text-rose-400 hover:bg-rose-500/20">
-                  <Trash2 size={12} /> Remove
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/[0.05] px-2.5 py-1 text-xs font-bold text-rose-400 hover:bg-rose-500/12 transition-colors">
+                  <Trash2 size={11} /> Remove
                 </button>
               </div>
               <div className="grid gap-3">
@@ -521,7 +721,7 @@ function DashboardContent() {
                 {project.tech_stack.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {project.tech_stack.map(t => (
-                      <span key={t} className="rounded-md border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-xs text-violet-300">{t}</span>
+                      <span key={t} className="rounded-md border border-violet-500/20 bg-violet-500/[0.07] px-2.5 py-0.5 text-xs font-bold text-violet-400">{t}</span>
                     ))}
                   </div>
                 )}
@@ -530,16 +730,18 @@ function DashboardContent() {
           ))}
         </AnimatePresence>
         {projects.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-white/8 py-12 text-center">
-            <FolderGit2 size={24} className="mx-auto text-zinc-600" />
-            <p className="mt-3 text-sm text-zinc-500">No projects yet. Showcase your best work.</p>
+          <div className="rounded-2xl border border-dashed border-white/[0.06] py-14 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02]">
+              <FolderGit2 size={18} className="text-zinc-700" />
+            </div>
+            <p className="mt-3 text-sm text-zinc-600">No projects yet. Showcase your best work.</p>
           </div>
         )}
         <div className="flex flex-wrap gap-3">
           <Btn variant="ghost" onClick={() => setProjects(prev => [...prev, { id: crypto.randomUUID(), profile_id: profile.id, title: '', description: '', thumbnail_url: '', live_url: '', github_url: '', tech_stack: [], featured: false, order_index: prev.length }])}>
-            <Plus size={15} /> Add Project
+            <Plus size={13} /> Add Project
           </Btn>
-          <Btn onClick={saveProjects} loading={saving}><Save size={15} /> Save Projects</Btn>
+          <Btn onClick={saveProjects} loading={saving}><Save size={13} /> Save</Btn>
         </div>
       </div>
     ),
@@ -549,12 +751,12 @@ function DashboardContent() {
         <AnimatePresence>
           {experience.map((item, idx) => (
             <motion.div key={item.id || `exp-${idx}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }}
-              className="rounded-2xl border border-white/6 bg-white/3 p-5">
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-500">Role {idx + 1}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">Role {idx + 1}</span>
                 <button onClick={() => setExperience(prev => prev.filter((_, i) => i !== idx))}
-                  className="flex items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/8 px-2.5 py-1 text-xs text-rose-400 hover:bg-rose-500/20">
-                  <Trash2 size={12} /> Remove
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/[0.05] px-2.5 py-1 text-xs font-bold text-rose-400 hover:bg-rose-500/12 transition-colors">
+                  <Trash2 size={11} /> Remove
                 </button>
               </div>
               <div className="grid gap-3">
@@ -567,58 +769,78 @@ function DashboardContent() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <StyledInput placeholder="Start date (e.g. Jan 2022)" value={item.start_date}
                     onChange={e => setExperience(prev => prev.map((x, i) => i === idx ? { ...x, start_date: e.target.value } : x))} />
-                  <StyledInput placeholder={item.is_current ? 'Present' : 'End date (e.g. Dec 2023)'} value={item.end_date} disabled={item.is_current}
+                  <StyledInput placeholder={item.is_current ? 'Present' : 'End date'} value={item.end_date} disabled={item.is_current}
                     onChange={e => setExperience(prev => prev.map((x, i) => i === idx ? { ...x, end_date: e.target.value } : x))} />
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={item.is_current} className="h-4 w-4 accent-violet-500 cursor-pointer"
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="checkbox" checked={item.is_current} className="h-4 w-4 cursor-pointer accent-violet-500"
                     onChange={e => setExperience(prev => prev.map((x, i) => i === idx ? { ...x, is_current: e.target.checked, end_date: e.target.checked ? '' : x.end_date } : x))} />
-                  <span className="text-xs text-zinc-400">Currently working here</span>
+                  <span className="text-xs text-zinc-500">Currently working here</span>
                 </label>
-                <StyledTextarea placeholder="Describe your responsibilities, achievements, and impact…" rows={3} value={item.description}
+                <StyledTextarea placeholder="Responsibilities, achievements, and impact…" rows={3} value={item.description}
                   onChange={e => setExperience(prev => prev.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))} />
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
         {experience.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-white/8 py-12 text-center">
-            <BriefcaseBusiness size={24} className="mx-auto text-zinc-600" />
-            <p className="mt-3 text-sm text-zinc-500">No experience added yet.</p>
+          <div className="rounded-2xl border border-dashed border-white/[0.06] py-14 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02]">
+              <BriefcaseBusiness size={18} className="text-zinc-700" />
+            </div>
+            <p className="mt-3 text-sm text-zinc-600">No experience added yet.</p>
           </div>
         )}
         <div className="flex flex-wrap gap-3">
           <Btn variant="ghost" onClick={() => setExperience(prev => [...prev, { id: crypto.randomUUID(), profile_id: profile.id, company: '', role: '', start_date: '', end_date: '', is_current: false, description: '', company_logo_url: '' }])}>
-            <Plus size={15} /> Add Experience
+            <Plus size={13} /> Add Experience
           </Btn>
-          <Btn onClick={saveExperience} loading={saving}><Save size={15} /> Save Experience</Btn>
+          <Btn onClick={saveExperience} loading={saving}><Save size={13} /> Save</Btn>
         </div>
       </div>
     ),
 
     template: (
-      <div className="space-y-4">
-        <p className="text-sm text-zinc-400">Choose a template for your public portfolio. Changes are applied immediately.</p>
+      <div className="space-y-5">
+        <p className="text-sm text-zinc-500">Choose a template for your public portfolio. Applied instantly.</p>
         <div className="grid gap-4 sm:grid-cols-3">
           {([
-            { id: 'minimal', label: 'Minimal', desc: 'Clean, focused, typography-forward. Great for writers and designers.', accent: 'from-zinc-600 to-zinc-700' },
-            { id: 'dark', label: 'Dark', desc: 'Sleek dark aesthetic with glowing accents. Perfect for developers.', accent: 'from-violet-600 to-indigo-700' },
-            { id: 'creative', label: 'Creative', desc: 'Bold, expressive, colorful. Ideal for creatives and artists.', accent: 'from-rose-600 to-orange-600' },
+            { id: 'minimal', label: 'Minimal', desc: 'Clean, focused, typography-forward. Great for writers and designers.', gradient: 'from-zinc-700 to-zinc-900', ring: 'ring-zinc-500/30 border-zinc-500/30' },
+            { id: 'dark', label: 'Dark', desc: 'Sleek dark with glowing accents. Perfect for developers.', gradient: 'from-violet-700 to-indigo-900', ring: 'ring-violet-500/30 border-violet-500/30' },
+            { id: 'creative', label: 'Creative', desc: 'Bold, expressive, colorful. Ideal for creatives.', gradient: 'from-rose-600 to-orange-700', ring: 'ring-rose-500/30 border-rose-500/30' },
           ] as const).map(t => {
             const active = profile.template === t.id
             return (
-              <button key={t.id} onClick={() => void saveTemplate(t.id)}
-                className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${active ? 'border-violet-500/50 bg-violet-500/8 ring-1 ring-violet-500/30' : 'border-white/6 bg-white/3 hover:border-white/12 hover:bg-white/5'}`}>
-                <div className={`mb-4 h-24 w-full rounded-xl bg-gradient-to-br ${t.accent} opacity-70`} />
+              <motion.button key={t.id} whileHover={{ y: -3, scale: 1.015 }} whileTap={{ scale: 0.97 }}
+                onClick={() => void saveTemplate(t.id)}
+                className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${active ? `${t.ring} bg-white/[0.04] ring-1` : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.09]'}`}>
+                <div className={`mb-4 h-24 w-full rounded-xl bg-gradient-to-br ${t.gradient} flex items-end justify-end p-3 overflow-hidden relative`}>
+                  {/* Fake portfolio preview lines */}
+                  <div className="absolute left-3 top-3 flex flex-col gap-1.5 w-1/2">
+                    <div className="h-1.5 rounded-full bg-white/20 w-3/4" />
+                    <div className="h-1 rounded-full bg-white/10 w-full" />
+                    <div className="h-1 rounded-full bg-white/10 w-1/2" />
+                  </div>
+                  <div className="h-5 w-14 rounded-md bg-white/25 backdrop-blur-sm" />
+                </div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-white">{t.label}</p>
+                    <p className="text-sm font-bold text-white">{t.label}</p>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-500">{t.desc}</p>
                   </div>
-                  {active && <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-violet-400" />}
+                  {active && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                      <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-violet-400" />
+                    </motion.div>
+                  )}
                 </div>
-                {active && <p className="mt-3 text-xs font-medium text-violet-400">Active template</p>}
-              </button>
+                {active && (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400">Active</p>
+                  </div>
+                )}
+              </motion.button>
             )
           })}
         </div>
@@ -626,32 +848,134 @@ function DashboardContent() {
     ),
 
     analytics: (
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <StatCard label="Total Views" value={totalViews} icon={Eye} accent="bg-violet-500" />
-          <StatCard label="Views This Week" value={weekViews} icon={TrendingUp} accent="bg-indigo-500" />
+      <div className="space-y-5">
+        {/* Real stats */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'Total Views', value: totalViews, icon: Eye, accent: 'bg-violet-500' },
+            { label: 'This Week', value: analytics.thisWeekTotal, icon: TrendingUp, accent: 'bg-indigo-500', trend: analytics.weekTrend },
+            { label: 'Today', value: analytics.todayViews, icon: Activity, accent: 'bg-sky-500' },
+            {
+              label: 'Avg Duration',
+              value: analytics.avgDuration !== null
+                ? analytics.avgDuration >= 60
+                  ? `${Math.floor(analytics.avgDuration / 60)}m ${analytics.avgDuration % 60}s`
+                  : `${analytics.avgDuration}s`
+                : '—',
+              icon: Clock, accent: 'bg-emerald-500'
+            },
+          ].map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+              <StatCard {...s} />
+            </motion.div>
+          ))}
         </div>
-        <div className="rounded-2xl border border-white/6 bg-white/3 p-6">
-          <p className="mb-1 text-sm font-semibold text-white">Views — Last 7 Days</p>
-          <p className="mb-6 text-xs text-zinc-500">Daily portfolio visitor count</p>
-          <div className="h-64 w-full">
+
+        {/* Main chart */}
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-white">Portfolio Views Over Time</p>
+              <p className="mt-0.5 text-xs text-zinc-600">
+                {totalViews === 0
+                  ? 'No views yet — share your portfolio link to start tracking'
+                  : `${totalViews} real views from actual visitors · not estimated`}
+              </p>
+            </div>
+            <div className="flex rounded-xl border border-white/[0.06] bg-black/20 p-1">
+              {(['7', '30'] as const).map(r => (
+                <button key={r} onClick={() => setAnalyticsRange(r)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${analyticsRange === r ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                  {r}d
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={last7DaysData}>
+              <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.28} />
                     <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="day" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                <XAxis dataKey="day" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false}
+                  interval={analyticsRange === '30' ? 4 : 0} />
+                <YAxis allowDecimals={false} tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} width={22} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="views" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#viewsGrad)" dot={{ fill: '#8b5cf6', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: '#a78bfa' }} />
+                <Area type="monotone" dataKey="views" stroke="#8b5cf6" strokeWidth={2.5}
+                  fill="url(#analyticsGrad)"
+                  dot={analyticsRange === '7' ? { fill: '#8b5cf6', r: 4, strokeWidth: 0 } : false}
+                  activeDot={{ r: 6, fill: '#a78bfa', strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Day-of-week + hourly grid */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
+            <p className="mb-1 text-sm font-bold text-white">Views by Day of Week</p>
+            <p className="mb-4 text-xs text-zinc-600">All-time breakdown</p>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.dayTotals} barSize={18}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} width={20} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="views" radius={[5, 5, 0, 0]}>
+                    {analytics.dayTotals.map((entry, i) => {
+                      const max = Math.max(...analytics.dayTotals.map(d => d.views), 1)
+                      const pct = entry.views / max
+                      return <Cell key={i} fill={`rgba(139,92,246,${0.15 + pct * 0.75})`} />
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-sm">
+            <p className="mb-1 text-sm font-bold text-white">Traffic by Hour</p>
+            <p className="mb-4 text-xs text-zinc-600">When visitors arrive (all-time)</p>
+            <div className="grid grid-cols-6 gap-1.5">
+              {analytics.hourly.map((h, i) => {
+                const max = Math.max(...analytics.hourly.map(x => x.views), 1)
+                const pct = h.views / max
+                return (
+                  <div key={i} title={`${h.label}: ${h.views} views`} className="flex flex-col items-center gap-1">
+                    <div className="w-full rounded-md transition-all duration-300"
+                      style={{
+                        height: '28px',
+                        background: pct > 0 ? `rgba(139,92,246,${0.08 + pct * 0.88})` : 'rgba(255,255,255,0.02)',
+                        border: `1px solid rgba(139,92,246,${pct * 0.45})`,
+                      }} />
+                    {i % 4 === 0 && <span className="text-[9px] text-zinc-700">{h.label}</span>}
+                  </div>
+                )
+              })}
+            </div>
+            {totalViews === 0 && <p className="mt-4 text-center text-xs text-zinc-700">No data yet</p>}
+          </div>
+        </div>
+
+        {/* Empty CTA */}
+        {totalViews === 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-2xl border border-dashed border-violet-500/15 bg-violet-500/[0.02] p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-500/15 bg-violet-500/[0.07]">
+              <BarChart3 size={18} className="text-violet-400" />
+            </div>
+            <p className="text-sm font-bold text-zinc-400">No views tracked yet</p>
+            <p className="mt-1 text-xs text-zinc-600">Share your portfolio link — every visit will be recorded here in real time.</p>
+            <Btn size="sm" className="mx-auto mt-4" onClick={copyPortfolioLink} disabled={!portfolioUrl}>
+              <Copy size={12} /> Copy Portfolio URL
+            </Btn>
+          </motion.div>
+        )}
       </div>
     ),
   }
@@ -661,82 +985,106 @@ function DashboardContent() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-        * { font-family: 'DM Sans', sans-serif; }
-        .font-mono { font-family: 'DM Mono', monospace; }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        *, *::before, *::after { font-family: 'Syne', sans-serif !important; }
+        .font-mono, .font-mono * { font-family: 'DM Mono', monospace !important; }
         :root { color-scheme: dark; }
-        select option { background: #18181b; color: #e4e4e7; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
-        input[type=checkbox] { cursor: pointer; }
+        select option { background: #0f0f17; color: #e4e4e7; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.12); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.28); }
+        @keyframes shimmer-logo { 0% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(220%) skewX(-20deg); } }
+        .logo-shine::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+          animation: shimmer-logo 4s infinite;
+          skew: -20deg;
+        }
       `}</style>
 
-      <div className="flex min-h-screen bg-[#0a0a0f] text-zinc-100">
+      <div className="relative flex min-h-screen bg-[#07070d] text-zinc-100 overflow-hidden">
+        <Background />
+        <AmbientCursor />
 
-        {/* ── Sidebar ──────────────────────────────────────────────────── */}
-        <aside className="hidden w-64 shrink-0 lg:flex lg:flex-col border-r border-white/5 bg-white/[0.015]">
-          <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-white/5 px-5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-md shadow-violet-500/30">
-              <Sparkles size={14} className="text-white" />
+        {/* ── Sidebar ──────────────────────────────────────────────── */}
+        <aside className="relative z-10 hidden w-[220px] shrink-0 flex-col border-r border-white/[0.05] bg-[#07070d]/80 backdrop-blur-2xl lg:flex">
+          {/* Brand */}
+          <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-white/[0.04] px-5">
+            <div className="logo-shine relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 shadow-lg shadow-violet-600/30">
+              <Code2 size={15} className="relative z-10 text-white" />
             </div>
-            <span className="text-sm font-semibold text-white">Folio</span>
+            <div>
+              <p className="text-[13px] font-bold tracking-tight text-white leading-none">DevFolio</p>
+              <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-violet-500/60">Dashboard</p>
+            </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-            <p className="mb-2 px-2 text-[10px] uppercase tracking-[0.2em] text-zinc-600">Menu</p>
+          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+            <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.25em] text-zinc-700">Menu</p>
             {NAV_ITEMS.map(item => {
               const active = activeTab === item.id
               return (
                 <button key={item.id} onClick={() => setActiveTab(item.id as DashboardTab)}
-                  className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${active ? 'bg-violet-500/15 text-violet-200' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'}`}>
-                  <item.icon size={16} className={active ? 'text-violet-400' : 'text-zinc-500 group-hover:text-zinc-300'} />
-                  {item.label}
-                  {active && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-violet-400" />}
+                  className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-all duration-200 ${active ? 'text-violet-200' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                  {active && (
+                    <motion.div layoutId="sidebarActive"
+                      className="absolute inset-0 rounded-xl bg-violet-500/[0.10] border border-violet-500/[0.15]"
+                      transition={{ type: 'spring', stiffness: 420, damping: 36 }} />
+                  )}
+                  <item.icon size={14} className={`relative z-10 ${active ? 'text-violet-400' : 'text-zinc-700 group-hover:text-zinc-500'} transition-colors`} />
+                  <span className="relative z-10">{item.label}</span>
+                  {active && <div className="relative z-10 ml-auto h-1 w-1 rounded-full bg-violet-400 shadow-[0_0_6px_rgba(167,139,250,0.7)]" />}
                 </button>
               )
             })}
-          </div>
+          </nav>
 
-          <div className="border-t border-white/5 p-3">
-            <div className="mb-3 flex items-center gap-3 rounded-xl px-3 py-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600/50 to-indigo-600/50 text-xs font-bold text-violet-200">
+          <div className="border-t border-white/[0.04] p-3">
+            <div className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 bg-white/[0.015]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/35 to-indigo-600/35 text-xs font-bold text-violet-200">
                 {initials}
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-zinc-300">{profile.full_name}</p>
-                <p className="truncate text-[10px] text-zinc-600">@{profile.username}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-bold text-zinc-300">{profile.full_name}</p>
+                <p className="truncate text-[10px] font-mono text-zinc-700">@{profile.username}</p>
               </div>
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.7)]" />
             </div>
             <button onClick={handleLogout}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-zinc-500 transition hover:bg-white/5 hover:text-zinc-300">
-              <LogOut size={14} /> Sign out
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] font-semibold text-zinc-700 transition hover:bg-white/[0.03] hover:text-zinc-400">
+              <LogOut size={12} /> Sign out
             </button>
           </div>
         </aside>
 
-        {/* ── Main ─────────────────────────────────────────────────────── */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        {/* ── Main ─────────────────────────────────────────────────── */}
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
 
-          {/* Top bar */}
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 px-5 lg:px-7">
+          {/* Topbar */}
+          <header className="flex h-[58px] shrink-0 items-center justify-between border-b border-white/[0.04] bg-[#07070d]/60 px-5 backdrop-blur-2xl lg:px-7">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 lg:hidden">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600">
-                  <Sparkles size={13} className="text-white" />
+                <div className="logo-shine relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 shadow-md shadow-violet-500/35">
+                  <Code2 size={13} className="relative z-10 text-white" />
                 </div>
+                <span className="text-[13px] font-bold text-white">DevFolio</span>
               </div>
-              <button onClick={() => setMobileNavOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/4 lg:hidden">
-                <Menu size={16} />
+              <button onClick={() => setMobileNavOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] lg:hidden">
+                <Menu size={14} />
               </button>
               <div className="hidden lg:block">
-                <h1 className="text-base font-semibold text-white">{currentTab?.label}</h1>
-                <p className="text-xs text-zinc-500">
-                  {activeTab === 'overview' && 'Your portfolio at a glance'}
-                  {activeTab === 'profile' && 'Update your public profile'}
-                  {activeTab === 'skills' && `${skills.length} skills listed`}
+                <h1 className="text-[15px] font-bold text-white leading-none">{currentTab?.label}</h1>
+                <p className="mt-0.5 text-[11px] text-zinc-600">
+                  {activeTab === 'overview' && 'Portfolio at a glance'}
+                  {activeTab === 'profile' && 'Manage public profile'}
+                  {activeTab === 'skills' && `${skills.length} skills`}
                   {activeTab === 'projects' && `${projects.length} projects`}
                   {activeTab === 'experience' && `${experience.length} roles`}
-                  {activeTab === 'template' && 'Pick your portfolio style'}
-                  {activeTab === 'analytics' && `${totalViews} total views`}
+                  {activeTab === 'template' && 'Visual style'}
+                  {activeTab === 'analytics' && `${totalViews} real views`}
                 </p>
               </div>
             </div>
@@ -744,11 +1092,11 @@ function DashboardContent() {
             <div className="flex items-center gap-2">
               {portfolioUrl && (
                 <Btn size="sm" variant="ghost" onClick={() => window.open(portfolioUrl, '_blank')}>
-                  <Eye size={13} /> <span className="hidden sm:inline">Preview</span>
+                  <Eye size={12} /> <span className="hidden sm:inline">Preview</span>
                 </Btn>
               )}
               <Btn size="sm" onClick={() => router.push('/onboarding')}>
-                <Rocket size={13} /> <span className="hidden sm:inline">New Project</span>
+                <Rocket size={12} /> <span className="hidden sm:inline">New Project</span>
               </Btn>
             </div>
           </header>
@@ -756,57 +1104,64 @@ function DashboardContent() {
           {/* Content */}
           <main className="flex-1 overflow-y-auto p-5 lg:p-7">
             <AnimatePresence mode="wait">
-              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+              <motion.div key={activeTab}
+                initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                 {tabContent[activeTab]}
               </motion.div>
             </AnimatePresence>
           </main>
         </div>
 
-        {/* ── Mobile nav overlay ────────────────────────────────────────── */}
+        {/* ── Mobile nav ───────────────────────────────────────────── */}
         <AnimatePresence>
           {mobileNavOpen && (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileNavOpen(false)}
-                className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden" />
-              <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-                className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/8 bg-[#0f0f16] lg:hidden">
-                <div className="flex h-16 items-center justify-between border-b border-white/5 px-5">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMobileNavOpen(false)}
+                className="fixed inset-0 z-40 bg-black/75 backdrop-blur-md lg:hidden" />
+              <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-white/[0.07] bg-[#0b0b14] backdrop-blur-xl lg:hidden">
+                <div className="flex h-[58px] items-center justify-between border-b border-white/[0.05] px-5">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600">
-                      <Sparkles size={13} className="text-white" />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700">
+                      <Code2 size={13} className="text-white" />
                     </div>
-                    <span className="text-sm font-semibold text-white">Folio</span>
+                    <span className="text-[13px] font-bold text-white">DevFolio</span>
                   </div>
-                  <button onClick={() => setMobileNavOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 text-zinc-400">
-                    <X size={15} />
+                  <button onClick={() => setMobileNavOpen(false)} className="flex h-7 w-7 items-center justify-center rounded-xl border border-white/[0.07] text-zinc-500">
+                    <X size={13} />
                   </button>
                 </div>
-                <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+                <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
                   {NAV_ITEMS.map(item => {
                     const active = activeTab === item.id
                     return (
-                      <button key={item.id} onClick={() => { setActiveTab(item.id as DashboardTab); setMobileNavOpen(false) }}
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${active ? 'bg-violet-500/15 text-violet-200' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'}`}>
-                        <item.icon size={16} className={active ? 'text-violet-400' : 'text-zinc-500'} />
+                      <button key={item.id}
+                        onClick={() => { setActiveTab(item.id as DashboardTab); setMobileNavOpen(false) }}
+                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-all ${active ? 'bg-violet-500/[0.10] text-violet-200 border border-violet-500/[0.14]' : 'text-zinc-600 hover:bg-white/[0.03] hover:text-zinc-300'}`}>
+                        <item.icon size={14} className={active ? 'text-violet-400' : 'text-zinc-700'} />
                         {item.label}
                       </button>
                     )
                   })}
-                </div>
-                <div className="border-t border-white/5 p-3">
-                  <div className="mb-3 flex items-center gap-3 px-3 py-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600/50 to-indigo-600/50 text-xs font-bold text-violet-200">{initials}</div>
+                </nav>
+                <div className="border-t border-white/[0.05] p-3">
+                  <div className="mb-2 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.015]">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/35 to-indigo-600/35 text-xs font-bold text-violet-200">{initials}</div>
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-zinc-300">{profile.full_name}</p>
-                      <p className="truncate text-[10px] text-zinc-600">@{profile.username}</p>
+                      <p className="truncate text-[12px] font-bold text-zinc-300">{profile.full_name}</p>
+                      <p className="truncate text-[10px] font-mono text-zinc-700">@{profile.username}</p>
                     </div>
                   </div>
-                  <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs text-zinc-500 hover:bg-white/5 hover:text-zinc-300">
-                    <LogOut size={14} /> Sign out
+                  <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-white/[0.03] hover:text-zinc-400 transition-colors">
+                    <LogOut size={12} /> Sign out
                   </button>
                 </div>
-              </motion.div>
+              </motion.aside>
             </>
           )}
         </AnimatePresence>
@@ -815,14 +1170,13 @@ function DashboardContent() {
   )
 }
 
-// ─── Page export (Suspense wrapper) ───────────────────────────────────────
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f]">
+      <div className="flex min-h-screen items-center justify-center bg-[#07070d]">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-violet-500" />
-          <p className="text-sm text-zinc-500">Loading workspace…</p>
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/[0.08] border-t-violet-500" />
+          <p className="text-sm font-bold text-zinc-600">DevFolio</p>
         </div>
       </div>
     }>

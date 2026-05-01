@@ -181,13 +181,7 @@ export default async function Home() {
                 Get started free
               </button>
             </Link>
-            {user && (
-              <Link href="/dashboard">
-                <button className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-200 transition hover:bg-violet-500/20">
-                  Dashboard →
-                </button>
-              </Link>
-            )}
+            
           </div>
         </nav>
 
@@ -215,7 +209,7 @@ export default async function Home() {
               <div className="reveal-4 mt-8 flex flex-wrap items-center gap-3">
                 <Link href="/signup">
                   <button className="glow-btn group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-all hover:from-violet-500 hover:to-indigo-500">
-                    Start building free
+                    Dashboard 
                     <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </Link>

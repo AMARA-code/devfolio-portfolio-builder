@@ -2,22 +2,58 @@
 
 import { FormEvent, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useEffect } from 'react'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [verifyingLink, setVerifyingLink] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [linkReady, setLinkReady] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function initRecoverySession() {
+      const code = searchParams.get('code')
+      if (code) {
+        const { error: codeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (codeError && mounted) {
+          setError('This reset link is invalid or expired. Please request a new one.')
+        }
+      }
+
+      const { data } = await supabase.auth.getSession()
+      if (!mounted) return
+      setLinkReady(Boolean(data.session))
+      setVerifyingLink(false)
+      if (!data.session) {
+        setError('This reset link is invalid or expired. Please request a new one.')
+      }
+    }
+
+    void initRecoverySession()
+    return () => {
+      mounted = false
+    }
+  }, [searchParams, supabase])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!linkReady) {
+      setError('Reset session not found. Open the latest reset link from your email.')
+      return
+    }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters.')
@@ -53,6 +89,11 @@ export default function ResetPasswordPage() {
             Choose a new password for your Devfolio account.
           </p>
 
+          {verifyingLink && (
+            <p className="mt-4 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-200">
+              Verifying reset link...
+            </p>
+          )}
           {error && (
             <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
               {error}
@@ -97,7 +138,7 @@ export default function ResetPasswordPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || verifyingLink || !linkReady}
               className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-all hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50"
             >
               {loading ? 'Updating password...' : 'Update password'}

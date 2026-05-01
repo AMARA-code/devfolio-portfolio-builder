@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -116,8 +116,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────
-export default function DashboardPage() {
+// ─── Inner component (uses useSearchParams) ────────────────────────────────
+function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -719,7 +719,6 @@ export default function DashboardPage() {
           {/* Top bar */}
           <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 px-5 lg:px-7">
             <div className="flex items-center gap-3">
-              {/* Mobile logo + hamburger */}
               <div className="flex items-center gap-2 lg:hidden">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600">
                   <Sparkles size={13} className="text-white" />
@@ -813,5 +812,21 @@ export default function DashboardPage() {
         </AnimatePresence>
       </div>
     </>
+  )
+}
+
+// ─── Page export (Suspense wrapper) ───────────────────────────────────────
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-violet-500" />
+          <p className="text-sm text-zinc-500">Loading workspace…</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }

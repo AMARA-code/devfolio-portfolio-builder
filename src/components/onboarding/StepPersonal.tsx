@@ -135,7 +135,7 @@ export default function StepPersonal({ onNext }: Props) {
             type="button"
             onClick={generateBio}
             disabled={generating || !form.full_name}
-            className="absolute right-2 bottom-2 text-xs bg-brand-50 text-brand-600 px-2 py-1 rounded-md hover:bg-brand-100 disabled:opacity-50 transition-colors"
+            className="absolute right-2 bottom-2 text-xs bg-brand-500/20 text-brand-300 px-2 py-1 rounded-md border border-brand-500/35 hover:bg-brand-500/30 hover:shadow-sm disabled:opacity-50 transition-all"
           >
             {generating ? 'Generating...' : '✨ AI Generate'}
           </button>

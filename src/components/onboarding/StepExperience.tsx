@@ -67,22 +67,22 @@ export default function StepExperience({ onNext, onBack }: Props) {
 
       {/* Experience */}
       <div className="mb-8">
-        <h3 className="font-semibold text-gray-800 mb-3">Work Experience</h3>
+        <h3 className="font-semibold text-slate-200 mb-3">Work Experience</h3>
 
         {experiences.map((exp, i) => (
-          <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mb-2 border border-gray-200">
+          <div key={i} className="flex justify-between items-center p-3 bg-slate-800/80 rounded-xl mb-2 border border-slate-700 shadow-sm">
             <div>
-              <p className="font-medium text-sm text-gray-900">{exp.role}</p>
-              <p className="text-xs text-gray-500">{exp.company}</p>
+              <p className="font-medium text-sm text-slate-100">{exp.role}</p>
+              <p className="text-xs text-slate-400">{exp.company}</p>
             </div>
-            <button onClick={() => setExperiences((e) => e.filter((_, idx) => idx !== i))} className="text-xs text-gray-400 hover:text-red-500">
+            <button onClick={() => setExperiences((e) => e.filter((_, idx) => idx !== i))} className="text-xs text-slate-400 hover:text-red-400 transition-colors">
               Remove
             </button>
           </div>
         ))}
 
         {addingExp ? (
-          <div className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
+          <div className="border border-slate-700 rounded-xl p-4 flex flex-col gap-3 bg-slate-900/50 shadow-sm">
             <div className="grid grid-cols-2 gap-3">
               <Input label="Company" placeholder="Google" value={expForm.company} onChange={(e) => setExpForm((f) => ({ ...f, company: e.target.value }))} required />
               <Input label="Role" placeholder="Frontend Developer" value={expForm.role} onChange={(e) => setExpForm((f) => ({ ...f, role: e.target.value }))} required />
@@ -91,7 +91,7 @@ export default function StepExperience({ onNext, onBack }: Props) {
               <Input label="Start Date" placeholder="Jan 2022" value={expForm.start_date} onChange={(e) => setExpForm((f) => ({ ...f, start_date: e.target.value }))} required />
               <Input label="End Date" placeholder="Dec 2023" value={expForm.end_date} onChange={(e) => setExpForm((f) => ({ ...f, end_date: e.target.value }))} disabled={expForm.is_current} />
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
               <input type="checkbox" checked={expForm.is_current} onChange={(e) => setExpForm((f) => ({ ...f, is_current: e.target.checked }))} />
               Currently working here
             </label>
@@ -108,7 +108,7 @@ export default function StepExperience({ onNext, onBack }: Props) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setAddingExp(true)} className="w-full border-2 border-dashed border-gray-200 rounded-xl p-3 text-gray-400 hover:border-brand-300 hover:text-brand-500 transition-colors text-sm">
+          <button onClick={() => setAddingExp(true)} className="w-full border-2 border-dashed border-slate-600 rounded-xl p-3 text-slate-300 hover:border-brand-400 hover:text-brand-300 hover:bg-slate-800/40 transition-all text-sm shadow-sm">
             + Add Experience
           </button>
         )}
@@ -116,22 +116,22 @@ export default function StepExperience({ onNext, onBack }: Props) {
 
       {/* Education */}
       <div className="mb-8">
-        <h3 className="font-semibold text-gray-800 mb-3">Education</h3>
+        <h3 className="font-semibold text-slate-200 mb-3">Education</h3>
 
         {educations.map((edu, i) => (
-          <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl mb-2 border border-gray-200">
+          <div key={i} className="flex justify-between items-center p-3 bg-slate-800/80 rounded-xl mb-2 border border-slate-700 shadow-sm">
             <div>
-              <p className="font-medium text-sm text-gray-900">{edu.institution}</p>
-              <p className="text-xs text-gray-500">{edu.degree} · {edu.field}</p>
+              <p className="font-medium text-sm text-slate-100">{edu.institution}</p>
+              <p className="text-xs text-slate-400">{edu.degree} · {edu.field}</p>
             </div>
-            <button onClick={() => setEducations((e) => e.filter((_, idx) => idx !== i))} className="text-xs text-gray-400 hover:text-red-500">
+            <button onClick={() => setEducations((e) => e.filter((_, idx) => idx !== i))} className="text-xs text-slate-400 hover:text-red-400 transition-colors">
               Remove
             </button>
           </div>
         ))}
 
         {addingEdu ? (
-          <div className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
+          <div className="border border-slate-700 rounded-xl p-4 flex flex-col gap-3 bg-slate-900/50 shadow-sm">
             <Input label="Institution" placeholder="LUMS, FAST, etc." value={eduForm.institution} onChange={(e) => setEduForm((f) => ({ ...f, institution: e.target.value }))} required />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Degree" placeholder="BS, MS, etc." value={eduForm.degree} onChange={(e) => setEduForm((f) => ({ ...f, degree: e.target.value }))} required />
@@ -147,7 +147,7 @@ export default function StepExperience({ onNext, onBack }: Props) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setAddingEdu(true)} className="w-full border-2 border-dashed border-gray-200 rounded-xl p-3 text-gray-400 hover:border-brand-300 hover:text-brand-500 transition-colors text-sm">
+          <button onClick={() => setAddingEdu(true)} className="w-full border-2 border-dashed border-slate-600 rounded-xl p-3 text-slate-300 hover:border-brand-400 hover:text-brand-300 hover:bg-slate-800/40 transition-all text-sm shadow-sm">
             + Add Education
           </button>
         )}
@@ -157,7 +157,7 @@ export default function StepExperience({ onNext, onBack }: Props) {
         <Button variant="outline" onClick={onBack}>← Back</Button>
         <Button onClick={handleNext}>Next →</Button>
       </div>
-      {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
     </div>
   )
 }

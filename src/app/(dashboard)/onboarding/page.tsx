@@ -387,11 +387,22 @@ export default function OnboardingPage() {
         input[type="password"],
         textarea,
         select {
-          background: rgba(255,255,255,0.04) !important;
-          border: 1px solid rgba(255,255,255,0.08) !important;
-          color: rgba(255,255,255,0.88) !important;
+          background: rgba(15,23,42,0.72) !important;
+          border: 1px solid rgba(71,85,105,0.65) !important;
+          color: rgba(248,250,252,0.9) !important;
           border-radius: 10px !important;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+          box-shadow: 0 1px 2px rgba(2,6,23,0.35) !important;
+          transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        input[type="text"]:hover,
+        input[type="email"]:hover,
+        input[type="url"]:hover,
+        input[type="password"]:hover,
+        textarea:hover,
+        select:hover {
+          background: rgba(30,41,59,0.82) !important;
+          border-color: rgba(100,116,139,0.9) !important;
+          box-shadow: 0 6px 18px rgba(2,6,23,0.35) !important;
         }
         input[type="text"]:focus,
         input[type="email"]:focus,
@@ -400,11 +411,11 @@ export default function OnboardingPage() {
         textarea:focus,
         select:focus {
           border-color: rgba(124,58,237,0.55) !important;
-          box-shadow: 0 0 0 3px rgba(124,58,237,0.12), 0 0 16px rgba(124,58,237,0.08) !important;
+          box-shadow: 0 0 0 3px rgba(124,58,237,0.12), 0 0 16px rgba(124,58,237,0.08), 0 10px 24px rgba(2,6,23,0.45) !important;
           outline: none !important;
         }
         ::placeholder {
-          color: rgba(255,255,255,0.2) !important;
+          color: rgba(148,163,184,0.9) !important;
         }
       `}</style>
 

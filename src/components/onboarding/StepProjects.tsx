@@ -181,24 +181,24 @@ export default function StepProjects({ onNext, onBack }: Props) {
           {projects.map((project, i) => (
             <div
               key={i}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200"
+              className="flex items-center justify-between p-3 bg-slate-800/80 rounded-xl border border-slate-700 shadow-sm"
             >
               <div>
-                <p className="font-medium text-gray-900 text-sm">{project.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="font-medium text-slate-100 text-sm">{project.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
                   {project.tech_stack.join(', ')}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => editProject(i)}
-                  className="text-gray-500 hover:text-brand-600 transition-colors text-sm"
+                  className="text-slate-300 hover:text-brand-300 transition-colors text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => removeProject(i)}
-                  className="text-gray-400 hover:text-red-500 transition-colors text-sm"
+                  className="text-slate-400 hover:text-red-400 transition-colors text-sm"
                 >
                   Remove
                 </button>
@@ -210,7 +210,7 @@ export default function StepProjects({ onNext, onBack }: Props) {
 
       {/* Add/Edit project form */}
       {adding ? (
-        <div className="border border-gray-200 rounded-xl p-4 mb-6 flex flex-col gap-3">
+        <div className="border border-slate-700 rounded-xl p-4 mb-6 flex flex-col gap-3 bg-slate-900/50 shadow-sm">
           <Input
             label="Project Title"
             placeholder="My Awesome App"
@@ -258,7 +258,7 @@ export default function StepProjects({ onNext, onBack }: Props) {
             />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-slate-300">
               Project Screenshot <span className="ml-1 text-red-500">*</span>
             </p>
             <div
@@ -274,13 +274,13 @@ export default function StepProjects({ onNext, onBack }: Props) {
               }}
               onClick={() => fileInputRef.current?.click()}
               className={`mt-2 cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition ${
-                isDragActive ? 'border-brand-500 bg-brand-50' : 'border-gray-300 bg-gray-50 hover:border-brand-400'
+                isDragActive ? 'border-brand-500 bg-brand-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]' : 'border-slate-600 bg-slate-800/70 hover:border-brand-400 hover:bg-slate-800'
               }`}
             >
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-medium text-slate-200">
                 {uploadingScreenshot ? 'Uploading screenshot...' : 'Drag & drop screenshot here or click to upload'}
               </p>
-              <p className="mt-1 text-xs text-gray-500">PNG, JPG, WEBP supported</p>
+              <p className="mt-1 text-xs text-slate-400">PNG, JPG, WEBP supported</p>
             </div>
             <input
               ref={fileInputRef}
@@ -290,21 +290,21 @@ export default function StepProjects({ onNext, onBack }: Props) {
               onChange={onScreenshotSelect}
             />
             {form.thumbnail_url && (
-              <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+              <div className="mt-3 overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
                 <img src={form.thumbnail_url} alt="Project screenshot preview" className="h-40 w-full object-cover" />
               </div>
             )}
             {formErrors.thumbnail_url && (
               <p className="mt-2 text-xs text-red-500">{formErrors.thumbnail_url}</p>
             )}
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-slate-400">
               Screenshot will be clickable and linked to project live URL.
             </p>
           </div>
 
           {/* Tech stack */}
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1.5">
+            <label className="text-sm font-medium text-slate-300 block mb-1.5">
               Tech Stack
             </label>
             <div className="flex gap-2 mb-2">
@@ -321,10 +321,10 @@ export default function StepProjects({ onNext, onBack }: Props) {
               {form.tech_stack.map((tech, i) => (
                 <span
                   key={i}
-                  className="flex items-center gap-1 bg-brand-50 text-brand-700 text-xs px-2 py-1 rounded-full"
+                  className="flex items-center gap-1 bg-brand-500/20 text-brand-300 text-xs px-2 py-1 rounded-full border border-brand-500/35 shadow-sm"
                 >
                   {tech}
-                  <button onClick={() => removeTech(i)} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeTech(i)} className="hover:text-red-300 transition-colors">×</button>
                 </span>
               ))}
             </div>
@@ -355,7 +355,7 @@ export default function StepProjects({ onNext, onBack }: Props) {
             setForm(emptyProject)
             setFormErrors({})
           }}
-          className="w-full border-2 border-dashed border-gray-200 rounded-xl p-4 text-gray-400 hover:border-brand-300 hover:text-brand-500 transition-colors mb-6 text-sm"
+          className="w-full border-2 border-dashed border-slate-600 rounded-xl p-4 text-slate-300 hover:border-brand-400 hover:text-brand-300 hover:bg-slate-800/40 transition-all mb-6 text-sm shadow-sm"
         >
           + Add a Project
         </button>
@@ -365,7 +365,7 @@ export default function StepProjects({ onNext, onBack }: Props) {
         <Button variant="outline" onClick={onBack}>← Back</Button>
         <Button onClick={handleNext}>Next →</Button>
       </div>
-      {stepError && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{stepError}</p>}
+      {stepError && <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{stepError}</p>}
     </div>
   )
 }

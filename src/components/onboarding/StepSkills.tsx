@@ -104,7 +104,7 @@ export default function StepSkills({ onNext, onBack }: Props) {
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   category === cat
                     ? 'bg-brand-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
                 {cat}
@@ -120,8 +120,8 @@ export default function StepSkills({ onNext, onBack }: Props) {
                 onClick={() => setLevel(lvl)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   level === lvl
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-slate-600 text-white'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
                 {lvl}
@@ -133,7 +133,7 @@ export default function StepSkills({ onNext, onBack }: Props) {
         <button
           onClick={suggestSkills}
           disabled={suggesting || !name.trim()}
-          className="text-xs text-brand-600 hover:underline disabled:opacity-50 text-left"
+          className="text-xs text-brand-400 hover:text-brand-300 hover:underline disabled:opacity-50 text-left transition-colors"
         >
           {suggesting ? 'Suggesting...' : '✨ AI suggest related skills'}
         </button>
@@ -141,17 +141,17 @@ export default function StepSkills({ onNext, onBack }: Props) {
 
       {/* Skills list */}
       {skills.length > 0 ? (
-        <div className="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-xl min-h-16">
+        <div className="flex flex-wrap gap-2 mb-6 p-4 bg-slate-800/70 rounded-xl min-h-16 border border-slate-700 shadow-sm">
           {skills.map((skill, i) => (
             <div
               key={i}
-              className="flex items-center gap-1 bg-white border border-gray-200 rounded-full px-3 py-1"
+              className="flex items-center gap-1 bg-slate-900 border border-slate-600 rounded-full px-3 py-1 shadow-sm"
             >
-              <span className="text-sm text-gray-700">{skill.name}</span>
-              <span className="text-xs text-gray-400">· {skill.level}</span>
+              <span className="text-sm text-slate-100">{skill.name}</span>
+              <span className="text-xs text-slate-400">· {skill.level}</span>
               <button
                 onClick={() => removeSkill(i)}
-                className="ml-1 text-gray-400 hover:text-red-500 transition-colors"
+                className="ml-1 text-slate-400 hover:text-red-400 transition-colors"
               >
                 ×
               </button>
@@ -159,11 +159,11 @@ export default function StepSkills({ onNext, onBack }: Props) {
           ))}
         </div>
       ) : (
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl text-center text-gray-400 text-sm">
+        <div className="mb-6 p-4 bg-slate-800/70 border border-slate-700 rounded-xl text-center text-slate-400 text-sm">
           No skills added yet. Add your first skill above.
         </div>
       )}
-      {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack}>

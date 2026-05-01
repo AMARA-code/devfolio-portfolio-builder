@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -11,24 +11,108 @@ import type { OnboardingData } from '@/types'
 
 const steps = ['Personal', 'Skills', 'Projects', 'Experience', 'Template']
 
+/* ─── Ambient orb background ─── */
+function AmbientBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {/* Deep base */}
+      <div className="absolute inset-0 bg-[#0a0a0f]" />
+
+      {/* Violet orb — top left */}
+      <div
+        className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full opacity-20"
+        style={{
+          background: 'radial-gradient(circle, #7c3aed 0%, #4f46e5 40%, transparent 70%)',
+          filter: 'blur(80px)',
+          animation: 'orbFloat1 12s ease-in-out infinite',
+        }}
+      />
+
+      {/* Indigo orb — bottom right */}
+      <div
+        className="absolute -bottom-60 -right-40 h-[700px] w-[700px] rounded-full opacity-15"
+        style={{
+          background: 'radial-gradient(circle, #6366f1 0%, #7c3aed 40%, transparent 70%)',
+          filter: 'blur(100px)',
+          animation: 'orbFloat2 15s ease-in-out infinite',
+        }}
+      />
+
+      {/* Subtle center pulse */}
+      <div
+        className="absolute left-1/2 top-1/2 h-[400px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-5"
+        style={{
+          background: 'radial-gradient(ellipse, #818cf8 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          animation: 'centerPulse 8s ease-in-out infinite',
+        }}
+      />
+
+      {/* Grid overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `linear-gradient(#818cf8 1px, transparent 1px), linear-gradient(90deg, #818cf8 1px, transparent 1px)`,
+          backgroundSize: '64px 64px',
+        }}
+      />
+
+      <style>{`
+        @keyframes orbFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%       { transform: translate(40px, 60px) scale(1.08); }
+          66%       { transform: translate(-20px, 30px) scale(0.95); }
+        }
+        @keyframes orbFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40%       { transform: translate(-50px, -40px) scale(1.1); }
+          70%       { transform: translate(20px, -20px) scale(0.92); }
+        }
+        @keyframes centerPulse {
+          0%, 100% { opacity: 0.05; }
+          50%       { opacity: 0.12; }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmerSlide {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+        @keyframes errorShake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+/* ─── Skeleton loader ─── */
 function StepLoadingSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-sm">
-      <div className="h-7 w-52 animate-pulse rounded-md bg-slate-700" />
-      <div className="mt-3 h-4 w-72 animate-pulse rounded-md bg-slate-800" />
-
+    <div
+      className="rounded-2xl p-8 shadow-2xl"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(24px)',
+        animation: 'fadeSlideUp 0.4s ease both',
+      }}
+    >
+      <div className="h-7 w-52 animate-pulse rounded-md" style={{ background: 'rgba(129,140,248,0.12)' }} />
+      <div className="mt-3 h-4 w-72 animate-pulse rounded-md" style={{ background: 'rgba(255,255,255,0.05)' }} />
       <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <div className="h-11 animate-pulse rounded-lg bg-slate-800" />
-        <div className="h-11 animate-pulse rounded-lg bg-slate-800" />
-        <div className="h-11 animate-pulse rounded-lg bg-slate-800" />
-        <div className="h-11 animate-pulse rounded-lg bg-slate-800" />
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-11 animate-pulse rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        ))}
       </div>
-
-      <div className="mt-4 h-28 animate-pulse rounded-lg bg-slate-800" />
-
+      <div className="mt-4 h-28 animate-pulse rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
       <div className="mt-8 flex justify-end gap-3">
-        <div className="h-10 w-24 animate-pulse rounded-lg bg-slate-800" />
-        <div className="h-10 w-28 animate-pulse rounded-lg bg-cyan-500/30" />
+        <div className="h-10 w-24 animate-pulse rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        <div className="h-10 w-28 animate-pulse rounded-lg" style={{ background: 'rgba(99,102,241,0.18)' }} />
       </div>
     </div>
   )
@@ -55,35 +139,147 @@ const StepTemplate = dynamic(() => import('@/components/onboarding/StepTemplate'
   loading: () => <StepLoadingSkeleton />,
 })
 
+/* ─── Step pill component ─── */
+function StepPill({
+  label,
+  index,
+  currentStep,
+  onClick,
+}: {
+  label: string
+  index: number
+  currentStep: number
+  onClick?: () => void
+}) {
+  const isActive = index === currentStep
+  const isDone = index < currentStep
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={index > currentStep}
+      className="group relative flex items-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-300"
+      style={{
+        background: isActive
+          ? 'linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(99,102,241,0.3) 100%)'
+          : isDone
+            ? 'rgba(99,102,241,0.1)'
+            : 'rgba(255,255,255,0.03)',
+        border: isActive
+          ? '1px solid rgba(139,92,246,0.45)'
+          : isDone
+            ? '1px solid rgba(99,102,241,0.2)'
+            : '1px solid rgba(255,255,255,0.06)',
+        color: isActive ? '#c4b5fd' : isDone ? '#818cf8' : 'rgba(255,255,255,0.3)',
+        boxShadow: isActive ? '0 0 16px rgba(124,58,237,0.22), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none',
+        cursor: index > currentStep ? 'default' : 'pointer',
+      }}
+    >
+      <span
+        className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold"
+        style={{
+          background: isActive
+            ? 'linear-gradient(135deg, #7c3aed, #6366f1)'
+            : isDone
+              ? 'rgba(99,102,241,0.35)'
+              : 'rgba(255,255,255,0.07)',
+          color: isActive ? '#fff' : isDone ? '#a5b4fc' : 'rgba(255,255,255,0.25)',
+        }}
+      >
+        {isDone ? '✓' : index + 1}
+      </span>
+      {label}
+
+      {/* Active shimmer sweep */}
+      {isActive && (
+        <span
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
+            animation: 'shimmerSlide 2.8s ease-in-out infinite',
+          }}
+        />
+      )}
+    </button>
+  )
+}
+
+/* ─── Progress bar ─── */
+function ProgressBar({ step }: { step: number }) {
+  const pct = (step / (steps.length - 1)) * 100
+
+  return (
+    <div
+      className="relative mt-5 h-[2px] w-full overflow-hidden rounded-full"
+      style={{ background: 'rgba(255,255,255,0.05)' }}
+    >
+      <div
+        className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
+        style={{
+          width: `${pct}%`,
+          background: 'linear-gradient(90deg, #7c3aed, #818cf8, #a78bfa)',
+          boxShadow: '0 0 10px rgba(124,58,237,0.7)',
+        }}
+      />
+      {/* Traveling glow dot */}
+      {pct > 0 && (
+        <div
+          className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full transition-all duration-700"
+          style={{
+            left: `calc(${pct}% - 4px)`,
+            background: '#a78bfa',
+            boxShadow: '0 0 8px 3px rgba(167,139,250,0.7)',
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ─── Step descriptions ─── */
+const stepHints = [
+  'Tell us who you are — name, location, and a short bio.',
+  'Add the technologies and tools you work with.',
+  'Showcase your best work with project links and screenshots.',
+  'Share your work history and education background.',
+  'Pick a portfolio template that fits your style.',
+]
+
+/* ─── Main page ─── */
 export default function OnboardingPage() {
   const router = useRouter()
   const supabase = createClient()
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [mounted, setMounted] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Small delay so the page fades in smoothly
+    const t = setTimeout(() => setMounted(true), 60)
+    return () => clearTimeout(t)
+  }, [])
 
   function validateFinalPayload(data: OnboardingData): string | null {
-    const personal = data.personal
-    if (!personal.full_name.trim()) return 'Full name is required.'
-    if (!personal.username.trim() || !isValidUsername(personal.username)) return 'Valid username is required.'
-    if (!personal.bio.trim()) return 'Bio is required.'
-    if (!personal.location.trim()) return 'Location is required.'
-    if (!personal.email.trim() || !isValidEmail(personal.email)) return 'Valid email is required.'
-    if (personal.website.trim() && !isValidHttpUrl(personal.website)) return 'Website URL is invalid.'
-    if (!isOptionalHttpUrl(personal.github_url)) return 'GitHub URL is invalid.'
-    if (!isOptionalHttpUrl(personal.linkedin_url)) return 'LinkedIn URL is invalid.'
-    if (!isOptionalHttpUrl(personal.twitter_url)) return 'Twitter URL is invalid.'
+    const p = data.personal
+    if (!p.full_name.trim()) return 'Full name is required.'
+    if (!p.username.trim() || !isValidUsername(p.username)) return 'Valid username is required.'
+    if (!p.bio.trim()) return 'Bio is required.'
+    if (!p.location.trim()) return 'Location is required.'
+    if (!p.email.trim() || !isValidEmail(p.email)) return 'Valid email is required.'
+    if (p.website.trim() && !isValidHttpUrl(p.website)) return 'Website URL is invalid.'
+    if (!isOptionalHttpUrl(p.github_url)) return 'GitHub URL is invalid.'
+    if (!isOptionalHttpUrl(p.linkedin_url)) return 'LinkedIn URL is invalid.'
+    if (!isOptionalHttpUrl(p.twitter_url)) return 'Twitter URL is invalid.'
     if (data.skills.length === 0) return 'At least one skill is required.'
     if (data.projects.length === 0) return 'At least one project is required.'
-    if (data.projects.some((project) => !project.title.trim() || !project.description.trim())) {
+    if (data.projects.some((x) => !x.title.trim() || !x.description.trim()))
       return 'Each project must include a title and description.'
-    }
-    if (data.projects.some((project) => !project.live_url.trim() || !isValidHttpUrl(project.live_url))) {
+    if (data.projects.some((x) => !x.live_url.trim() || !isValidHttpUrl(x.live_url)))
       return 'Each project must include a valid live URL.'
-    }
-    if (data.projects.some((project) => !project.thumbnail_url.trim())) {
+    if (data.projects.some((x) => !x.thumbnail_url.trim()))
       return 'Screenshot upload is required for each project.'
-    }
     if (data.experience.length === 0) return 'At least one experience entry is required.'
     if (data.education.length === 0) return 'At least one education entry is required.'
     return null
@@ -91,69 +287,32 @@ export default function OnboardingPage() {
 
   async function submitOnboarding() {
     const data: OnboardingData = getOnboardingData()
-    const validationError = validateFinalPayload(data)
-    if (validationError) {
-      setSubmitError(validationError)
-      return
-    }
+    const err = validateFinalPayload(data)
+    if (err) { setSubmitError(err); return }
     setSubmitting(true)
     setSubmitError('')
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/login'); return }
 
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      const profilePayload = {
-        user_id: user.id,
-        ...data.personal,
-        template: data.template,
-        is_published: true,
-      }
-
+      const profilePayload = { user_id: user.id, ...data.personal, template: data.template, is_published: true }
       let profileId = ''
 
-      // More reliable than upsert(onConflict) when DB constraints differ.
-      const { data: existingProfile, error: existingProfileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle()
+      const { data: existing, error: eErr } = await supabase
+        .from('profiles').select('id').eq('user_id', user.id).maybeSingle()
+      if (eErr) throw new Error(eErr.message)
 
-      if (existingProfileError) {
-        throw new Error(existingProfileError.message)
-      }
-
-      if (existingProfile) {
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from('profiles')
-          .update(profilePayload)
-          .eq('id', existingProfile.id)
-          .select('id')
-          .single()
-
-        if (updateError || !updatedProfile) {
-          throw new Error(updateError?.message || 'Could not update profile.')
-        }
-
-        profileId = updatedProfile.id
+      if (existing) {
+        const { data: upd, error: uErr } = await supabase
+          .from('profiles').update(profilePayload).eq('id', existing.id).select('id').single()
+        if (uErr || !upd) throw new Error(uErr?.message || 'Could not update profile.')
+        profileId = upd.id
       } else {
-        const { data: insertedProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert(profilePayload)
-          .select('id')
-          .single()
-
-        if (insertError || !insertedProfile) {
-          throw new Error(insertError?.message || 'Could not create profile.')
-        }
-
-        profileId = insertedProfile.id
+        const { data: ins, error: iErr } = await supabase
+          .from('profiles').insert(profilePayload).select('id').single()
+        if (iErr || !ins) throw new Error(iErr?.message || 'Could not create profile.')
+        profileId = ins.id
       }
 
       await Promise.all([
@@ -163,46 +322,16 @@ export default function OnboardingPage() {
         supabase.from('education').delete().eq('profile_id', profileId),
       ])
 
-      if (data.skills.length > 0) {
-        const { error } = await supabase.from('skills').insert(
-          data.skills.map((item) => ({
-            profile_id: profileId,
-            ...item,
-          }))
-        )
+      const insertBatch = async (table: string, rows: Record<string, unknown>[]) => {
+        if (!rows.length) return
+        const { error } = await supabase.from(table).insert(rows)
         if (error) throw new Error(error.message)
       }
 
-      if (data.projects.length > 0) {
-        const { error } = await supabase.from('projects').insert(
-          data.projects.map((item, index) => ({
-            profile_id: profileId,
-            ...item,
-            order_index: index,
-          }))
-        )
-        if (error) throw new Error(error.message)
-      }
-
-      if (data.experience.length > 0) {
-        const { error } = await supabase.from('experience').insert(
-          data.experience.map((item) => ({
-            profile_id: profileId,
-            ...item,
-          }))
-        )
-        if (error) throw new Error(error.message)
-      }
-
-      if (data.education.length > 0) {
-        const { error } = await supabase.from('education').insert(
-          data.education.map((item) => ({
-            profile_id: profileId,
-            ...item,
-          }))
-        )
-        if (error) throw new Error(error.message)
-      }
+      await insertBatch('skills', data.skills.map((x) => ({ profile_id: profileId, ...x })))
+      await insertBatch('projects', data.projects.map((x, i) => ({ profile_id: profileId, ...x, order_index: i })))
+      await insertBatch('experience', data.experience.map((x) => ({ profile_id: profileId, ...x })))
+      await insertBatch('education', data.education.map((x) => ({ profile_id: profileId, ...x })))
 
       clearOnboardingData()
       router.push('/dashboard?published=1')
@@ -214,33 +343,230 @@ export default function OnboardingPage() {
     }
   }
 
-  return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100 sm:px-6">
-      <div className="mx-auto max-w-4xl">
-      <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-white">Create your Devfolio</h1>
-        <p className="mt-1 text-sm text-slate-400">Complete your profile in 5 quick steps.</p>
-        {submitError && <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-200">{submitError}</p>}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {steps.map((label, index) => (
-            <div
-              key={label}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                index <= step ? 'bg-cyan-500/20 text-cyan-200' : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {index + 1}. {label}
-            </div>
-          ))}
-        </div>
-      </div>
+  /* Animated step transition */
+  function handleStepChange(next: number) {
+    const el = contentRef.current
+    if (el) {
+      el.style.opacity = '0'
+      el.style.transform = 'translateY(10px)'
+      setTimeout(() => {
+        setStep(next)
+        el.style.transition = 'opacity 0.28s ease, transform 0.28s ease'
+        el.style.opacity = '1'
+        el.style.transform = 'translateY(0)'
+      }, 200)
+    } else {
+      setStep(next)
+    }
+  }
 
-      {step === 0 && <StepPersonal onNext={() => setStep(1)} />}
-      {step === 1 && <StepSkills onBack={() => setStep(0)} onNext={() => setStep(2)} />}
-      {step === 2 && <StepProjects onBack={() => setStep(1)} onNext={() => setStep(3)} />}
-      {step === 3 && <StepExperience onBack={() => setStep(2)} onNext={() => setStep(4)} />}
-      {step === 4 && <StepTemplate onBack={() => setStep(3)} onSubmit={submitOnboarding} submitting={submitting} />}
-      </div>
-    </main>
+  return (
+    <>
+      <AmbientBackground />
+
+      <style>{`
+        /* ── Global keyframes ── */
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmerSlide {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+        @keyframes errorShake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
+        }
+
+        /* ── Child step input theming ── */
+        input[type="text"],
+        input[type="email"],
+        input[type="url"],
+        input[type="password"],
+        textarea,
+        select {
+          background: rgba(255,255,255,0.04) !important;
+          border: 1px solid rgba(255,255,255,0.08) !important;
+          color: rgba(255,255,255,0.88) !important;
+          border-radius: 10px !important;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="url"]:focus,
+        input[type="password"]:focus,
+        textarea:focus,
+        select:focus {
+          border-color: rgba(124,58,237,0.55) !important;
+          box-shadow: 0 0 0 3px rgba(124,58,237,0.12), 0 0 16px rgba(124,58,237,0.08) !important;
+          outline: none !important;
+        }
+        ::placeholder {
+          color: rgba(255,255,255,0.2) !important;
+        }
+      `}</style>
+
+      <main
+        className="relative z-10 min-h-screen px-4 py-10 sm:px-6"
+        style={{
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 0.45s ease',
+        }}
+      >
+        <div className="mx-auto max-w-4xl">
+
+          {/* ── Header card ── */}
+          <div
+            className="mb-6 rounded-2xl p-6"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(28px)',
+              WebkitBackdropFilter: 'blur(28px)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.025), 0 32px 80px rgba(0,0,0,0.55)',
+              animation: 'fadeSlideUp 0.55s ease both',
+            }}
+          >
+            {/* Top row */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  {/* Logo mark */}
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[13px] font-black text-white"
+                    style={{
+                      background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                      boxShadow: '0 0 20px rgba(124,58,237,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
+                    }}
+                  >
+                    DF
+                  </div>
+                  <h1
+                    className="text-2xl font-black tracking-tight text-white"
+                    style={{ letterSpacing: '-0.035em' }}
+                  >
+                    Create your{' '}
+                    <span
+                      style={{
+                        background: 'linear-gradient(130deg, #a78bfa 0%, #818cf8 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                      }}
+                    >
+                      Devfolio
+                    </span>
+                  </h1>
+                </div>
+                <p className="mt-1.5 text-sm" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                  Complete your profile in{' '}
+                  <span style={{ color: '#a78bfa', fontWeight: 600 }}>5 quick steps</span>{' '}
+                  and go live instantly.
+                </p>
+              </div>
+
+              {/* Step counter */}
+              <div
+                className="flex-shrink-0 rounded-xl px-3 py-2 text-center"
+                style={{
+                  background: 'rgba(124,58,237,0.1)',
+                  border: '1px solid rgba(124,58,237,0.18)',
+                }}
+              >
+                <div
+                  className="text-xl font-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #a78bfa, #818cf8)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  {step + 1}
+                </div>
+                <div className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  of {steps.length}
+                </div>
+              </div>
+            </div>
+
+            {/* Error banner */}
+            {submitError && (
+              <div
+                className="mt-4 flex items-start gap-3 rounded-xl px-4 py-3"
+                style={{
+                  background: 'rgba(239,68,68,0.07)',
+                  border: '1px solid rgba(239,68,68,0.18)',
+                  animation: 'errorShake 0.38s ease',
+                }}
+              >
+                <span className="mt-0.5 flex-shrink-0 text-red-400">⚠</span>
+                <p className="text-sm text-red-300/90">{submitError}</p>
+              </div>
+            )}
+
+            {/* Step pills */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {steps.map((label, index) => (
+                <StepPill
+                  key={label}
+                  label={label}
+                  index={index}
+                  currentStep={step}
+                  onClick={() => index < step ? handleStepChange(index) : undefined}
+                />
+              ))}
+            </div>
+
+            {/* Progress bar */}
+            <ProgressBar step={step} />
+
+            {/* Current step hint */}
+            <p
+              className="mt-3 text-xs"
+              style={{ color: 'rgba(255,255,255,0.22)', fontWeight: 500 }}
+            >
+              {stepHints[step]}
+            </p>
+          </div>
+
+          {/* ── Step content wrapper ── */}
+          <div
+            ref={contentRef}
+            style={{
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+            }}
+          >
+            {step === 0 && <StepPersonal onNext={() => handleStepChange(1)} />}
+            {step === 1 && <StepSkills onBack={() => handleStepChange(0)} onNext={() => handleStepChange(2)} />}
+            {step === 2 && <StepProjects onBack={() => handleStepChange(1)} onNext={() => handleStepChange(3)} />}
+            {step === 3 && <StepExperience onBack={() => handleStepChange(2)} onNext={() => handleStepChange(4)} />}
+            {step === 4 && (
+              <StepTemplate
+                onBack={() => handleStepChange(3)}
+                onSubmit={submitOnboarding}
+                submitting={submitting}
+              />
+            )}
+          </div>
+
+          {/* ── Footer hint ── */}
+          <div
+            className="mx-auto mt-6 w-fit rounded-full px-4 py-2 text-xs"
+            style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(12px)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            ✦ Progress saved automatically
+          </div>
+        </div>
+      </main>
+    </>
   )
 }

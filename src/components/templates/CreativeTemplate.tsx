@@ -330,6 +330,14 @@ const GLOBAL_CSS = `
     .btn-outline  { font-size: 13px; padding: 11px 18px; }
   }
 
+  /* Stack CTAs on small screens */
+  @media (max-width: 520px) {
+    .btn-primary, .btn-outline {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
   /* Nav links */
   .nav-link {
     font-family: ${C.body}; font-size: 13.5px; font-weight: 600;
@@ -634,7 +642,7 @@ function SkillTicker({ skills }: { skills: Skill[] }) {
   const doubled = [...skills, ...skills]; // for seamless loop
   return (
     <div className="ticker-wrap" style={{
-      margin: "0 -32px",
+      margin: "0 calc(-1 * clamp(16px,4vw,32px))",
       padding: "20px 0",
       borderTop: `1px solid ${C.border}`,
       borderBottom: `1px solid ${C.border}`,
@@ -643,12 +651,12 @@ function SkillTicker({ skills }: { skills: Skill[] }) {
     }}>
       {/* fade edges */}
       <div style={{
-        position: "absolute", left: 0, top: 0, bottom: 0, width: 80,
+        position: "absolute", left: 0, top: 0, bottom: 0, width: "clamp(22px,6vw,80px)",
         background: `linear-gradient(90deg, ${C.bg}, transparent)`,
         zIndex: 2, pointerEvents: "none",
       }} />
       <div style={{
-        position: "absolute", right: 0, top: 0, bottom: 0, width: 80,
+        position: "absolute", right: 0, top: 0, bottom: 0, width: "clamp(22px,6vw,80px)",
         background: `linear-gradient(-90deg, ${C.bg}, transparent)`,
         zIndex: 2, pointerEvents: "none",
       }} />

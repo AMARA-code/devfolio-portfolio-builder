@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Copy, ExternalLink, LayoutDashboard } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
+import { buildPublicAppUrl } from '@/lib/public-app-url'
 
 export default function PublishedPortfolioPage() {
   const searchParams = useSearchParams()
@@ -13,8 +14,8 @@ export default function PublishedPortfolioPage() {
 
   const publicPath = username ? `/u/${username}` : ''
   const liveUrl = useMemo(() => {
-    if (!username || typeof window === 'undefined') return ''
-    return `${window.location.origin}/u/${username}`
+    if (!username) return ''
+    return buildPublicAppUrl(`/u/${username}`)
   }, [username])
 
   async function handleCopy() {

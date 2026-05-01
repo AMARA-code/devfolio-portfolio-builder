@@ -7,6 +7,7 @@ import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { buildPublicAppUrl } from '@/lib/public-app-url'
 
 /* ─── Floating orb component ─────────────────────────────────────────────── */
 function Orb({
@@ -198,7 +199,7 @@ export default function SignupPage() {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: buildPublicAppUrl('/auth/callback') },
     })
     if (error) { setError(error.message); setGithubLoading(false) }
   }

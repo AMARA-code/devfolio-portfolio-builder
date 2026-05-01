@@ -188,7 +188,7 @@ function Nav({ data, currentPage, onNavigate }: { data: PortfolioData; currentPa
     }}>
       <div style={{
         maxWidth: 980, margin: "0 auto",
-        padding: "0 24px",
+        padding: "0 clamp(14px,4vw,24px)",
         display: "flex", alignItems: "center",
         justifyContent: "space-between",
         height: 56,
@@ -241,7 +241,7 @@ function Footer({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: Pag
       marginTop: 64,
     }}>
       <div style={{ maxWidth: 980, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16, alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 24 }}>
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center" }}>
           {NAV_ITEMS.map(({ label, page }) => (
             <button key={page} onClick={() => onNavigate(page)}
               style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#94a3b8", fontFamily: "'DM Sans', sans-serif" }}>
@@ -262,7 +262,7 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       maxWidth: 980, margin: "0 auto",
-      padding: "48px 24px 32px",
+      padding: "clamp(28px,6vw,48px) clamp(14px,4vw,24px) 32px",
       fontFamily: "'DM Sans', sans-serif",
     }}>
       {children}
@@ -278,7 +278,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
       <div style={{
         borderRadius: 20,
         background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #1a1a2e 100%)",
-        padding: "52px 48px",
+        padding: "clamp(28px,6vw,52px) clamp(18px,5vw,48px)",
         color: "#fff",
         position: "relative",
         overflow: "hidden",
@@ -337,7 +337,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
       </div>
 
       {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
         {[
           { v: data.projects.length, l: "Projects" },
           { v: data.skills.length, l: "Skills" },
@@ -355,7 +355,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
       </div>
 
       {/* About + Skills row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: "0 0 16px" }}>About</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -400,7 +400,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
             All projects →
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {data.projects.slice(0, 2).map((p) => (
             <ProjectCard key={p.id} project={p} />
           ))}
@@ -681,7 +681,7 @@ function AddProjectModal({ onClose, onAdd }: AddProjectModalProps) {
               value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Live URL</label>
               <input style={inputStyle} placeholder="https://..." type="url"
@@ -773,7 +773,7 @@ function ProjectsPage({ data, onNavigate }: { data: PortfolioData; onNavigate: (
       )}
 
       {filtered.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {filtered.map((p) => <ProjectCard key={p.id} project={p} />)}
         </div>
       ) : (
@@ -860,7 +860,7 @@ function ExperiencePage({ data, onNavigate }: { data: PortfolioData; onNavigate:
       <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: "0 0 4px", letterSpacing: "-0.02em" }}>Experience</h1>
       <p style={{ fontSize: 13.5, color: "#94a3b8", margin: "0 0 32px" }}>{data.experience.length} position{data.experience.length !== 1 ? "s" : ""}</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 36 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 36 }}>
         {[
           { v: data.experience.length, l: "Total Roles" },
           { v: current.length, l: "Current" },

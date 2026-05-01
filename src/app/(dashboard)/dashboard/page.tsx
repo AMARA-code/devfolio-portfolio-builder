@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 import type { Experience, PortfolioData, Profile, Project, Skill } from '@/types'
 import { isOptionalHttpUrl, isValidEmail, isValidHttpUrl, isValidUsername } from '@/lib/validation'
+import { buildPublicAppUrl } from '@/lib/public-app-url'
 
 type DashboardTab = 'overview' | 'profile' | 'skills' | 'projects' | 'experience' | 'template' | 'analytics'
 type ViewRow = { viewed_at: string; referrer?: string; country?: string; duration_seconds?: number }
@@ -307,8 +308,7 @@ function DashboardContent() {
   const analytics = useRealAnalytics(views)
   const totalViews = views.length
   const chartData = analyticsRange === '7' ? analytics.last7 : analytics.last30
-  const portfolioUrl = typeof window !== 'undefined' && profile?.username
-    ? `${window.location.origin}/u/${profile.username}` : ''
+  const portfolioUrl = profile?.username ? buildPublicAppUrl(`/u/${profile.username}`) : ''
   const justPublished = searchParams.get('published') === '1'
 
   const isProfileFormValid = useMemo(() => (

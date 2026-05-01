@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import { buildPublicAppUrl } from '@/lib/public-app-url'
 
 /* ─── Orb ─────────────────────────────────────────────────────────────────── */
 function Orb({ cx, cy, r, color, delay = 0 }: { cx: string; cy: string; r: string; color: string; delay?: number }) {
@@ -161,7 +162,7 @@ export default function LoginPage() {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: buildPublicAppUrl('/auth/callback') },
     })
     if (error) { setError(error.message); setGithubLoading(false) }
   }

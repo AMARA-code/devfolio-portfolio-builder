@@ -313,6 +313,18 @@ const GLOBAL_CSS = `
     border-top: 1px solid ${T.border};
     margin: 0;
   }
+
+  /* Responsive layout */
+  @media (max-width: 900px) {
+    .btn-primary, .btn-ghost { padding: 10px 18px; }
+  }
+  @media (max-width: 600px) {
+    .btn-primary, .btn-ghost {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+  }
 `;
 
 // ─── LAYOUT ───────────────────────────────────────────────────────────────────
@@ -337,7 +349,7 @@ function Nav({ data, currentPage, onNavigate }: {
     }}>
       <div style={{
         maxWidth: 1040, margin: "0 auto",
-        padding: "0 28px",
+        padding: "0 clamp(14px,4vw,28px)",
         display: "flex", alignItems: "center",
         justifyContent: "space-between",
         height: 60,
@@ -413,7 +425,7 @@ function Footer({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: Pag
 
 function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ maxWidth: 1040, margin: "0 auto", padding: "56px 28px 40px" }}>
+    <div style={{ maxWidth: 1040, margin: "0 auto", padding: "clamp(28px,6vw,56px) clamp(14px,4vw,28px) 40px" }}>
       {children}
     </div>
   );
@@ -430,7 +442,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
         border: `1px solid ${T.border}`,
         overflow: "hidden",
         marginBottom: 20,
-        padding: "60px 52px",
+        padding: "clamp(26px,6vw,60px) clamp(16px,5vw,52px)",
         background: T.surface,
       }}>
         {/* Grid texture */}
@@ -485,7 +497,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
 
       {/* ── Stats ── */}
       <div className="fade-up fade-up-1" style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20,
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20,
       }}>
         {[
           { v: data.projects.length, l: "Projects", suffix: "" },
@@ -515,7 +527,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
 
       {/* ── About + Skills ── */}
       <div className="fade-up fade-up-2" style={{
-        display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 12, marginBottom: 20,
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginBottom: 20,
       }}>
         {/* About */}
         <div style={{
@@ -569,7 +581,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
             All projects →
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
           {data.projects.slice(0, 2).map((p) => (
             <ProjectCard key={p.id} project={p} />
           ))}
@@ -577,7 +589,7 @@ function HomePage({ data, onNavigate }: { data: PortfolioData; onNavigate: (p: P
       </div>
 
       {/* ── Experience Preview + Contact ── */}
-      <div className="fade-up fade-up-4" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
+      <div className="fade-up fade-up-4" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
         {/* Exp preview */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
@@ -884,7 +896,7 @@ function AddProjectModal({ onClose, onAdd }: AddProjectModalProps) {
               value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             <div>
               <label style={{ fontFamily: T.mono, fontSize: 10, color: T.textDim, letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Live URL</label>
               <input style={inputStyle} placeholder="https://..." type="url"
@@ -971,7 +983,7 @@ function ProjectsPage({ data, onNavigate }: { data: PortfolioData; onNavigate: (
       )}
 
       {filtered.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {filtered.map((p) => <ProjectCard key={p.id} project={p} />)}
         </div>
       ) : (

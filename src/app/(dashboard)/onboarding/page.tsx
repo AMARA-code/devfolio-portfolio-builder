@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { Code2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 import { clearOnboardingData, getOnboardingData } from '@/lib/onboarding-store'
@@ -445,20 +446,15 @@ export default function OnboardingPage() {
               <div>
                 <div className="flex items-center gap-3">
                   {/* Logo mark */}
-                  <div
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[13px] font-black text-white"
-                    style={{
-                      background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
-                      boxShadow: '0 0 20px rgba(124,58,237,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
-                    }}
-                  >
-                    DF
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-500/40">
+                    <Code2 size={16} className="text-white" />
                   </div>
                   <h1
                     className="text-2xl font-black tracking-tight text-white"
                     style={{ letterSpacing: '-0.035em' }}
                   >
-                    Create your{' '}
+                    <span className="mr-1 lowercase">devfolio</span>{' '}
+                    <span className="text-slate-300">|</span>{' '}
                     <span
                       style={{
                         background: 'linear-gradient(130deg, #a78bfa 0%, #818cf8 100%)',
@@ -467,7 +463,7 @@ export default function OnboardingPage() {
                         backgroundClip: 'text',
                       }}
                     >
-                      Devfolio
+                      onboarding
                     </span>
                   </h1>
                 </div>

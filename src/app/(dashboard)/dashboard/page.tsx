@@ -94,7 +94,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 const inputCls =
-  'w-full rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none transition-all duration-200 focus:border-violet-500/50 focus:bg-white/[0.04] focus:ring-2 focus:ring-violet-500/[0.12] hover:border-white/[0.10]'
+  'w-full rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all duration-200 focus:border-violet-500/50 focus:bg-white/[0.04] focus:ring-2 focus:ring-violet-500/[0.12] hover:border-violet-400/35 hover:shadow-[0_10px_24px_rgba(76,29,149,0.22)]'
 
 function StyledInput({ label, error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
   const el = <input className={inputCls} {...props} />
@@ -1005,12 +1005,12 @@ function DashboardContent() {
         }
       `}</style>
 
-      <div className="relative flex min-h-screen bg-[#07070d] text-zinc-100 overflow-hidden">
+      <div className="relative flex h-screen bg-[#07070d] text-zinc-100 overflow-hidden">
         <Background />
         <AmbientCursor />
 
         {/* ── Sidebar ──────────────────────────────────────────────── */}
-        <aside className="relative z-10 hidden w-[220px] shrink-0 flex-col border-r border-white/[0.05] bg-[#07070d]/80 backdrop-blur-2xl lg:flex">
+        <aside className="relative z-10 hidden h-screen w-[220px] shrink-0 flex-col border-r border-white/[0.05] bg-[#07070d]/80 backdrop-blur-2xl lg:flex">
           {/* Brand */}
           <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-white/[0.04] px-5">
             <div className="logo-shine relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 shadow-lg shadow-violet-600/30">
@@ -1022,20 +1022,20 @@ function DashboardContent() {
             </div>
           </div>
 
-          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+          <nav className="flex flex-1 flex-col gap-0.5 overflow-hidden px-3 py-4">
             <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.25em] text-zinc-700">Menu</p>
             {NAV_ITEMS.map(item => {
               const active = activeTab === item.id
               return (
                 <button key={item.id} onClick={() => setActiveTab(item.id as DashboardTab)}
-                  className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-all duration-200 ${active ? 'text-violet-200' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                  className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-all duration-300 ${active ? 'text-violet-200 shadow-[0_8px_20px_rgba(76,29,149,0.22)]' : 'text-zinc-500 hover:text-zinc-200 hover:translate-x-1 hover:shadow-[0_8px_18px_rgba(59,130,246,0.18)]'}`}>
                   {active && (
                     <motion.div layoutId="sidebarActive"
                       className="absolute inset-0 rounded-xl bg-violet-500/[0.10] border border-violet-500/[0.15]"
                       transition={{ type: 'spring', stiffness: 420, damping: 36 }} />
                   )}
                   <item.icon size={14} className={`relative z-10 ${active ? 'text-violet-400' : 'text-zinc-700 group-hover:text-zinc-500'} transition-colors`} />
-                  <span className="relative z-10">{item.label}</span>
+                  <span className={`relative z-10 transition-transform duration-300 ${active ? 'translate-x-0.5' : 'group-hover:translate-x-1'}`}>{item.label}</span>
                   {active && <div className="relative z-10 ml-auto h-1 w-1 rounded-full bg-violet-400 shadow-[0_0_6px_rgba(167,139,250,0.7)]" />}
                 </button>
               )
@@ -1061,7 +1061,7 @@ function DashboardContent() {
         </aside>
 
         {/* ── Main ─────────────────────────────────────────────────── */}
-        <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
+        <div className="relative z-10 flex h-screen flex-1 flex-col overflow-hidden">
 
           {/* Topbar */}
           <header className="flex h-[58px] shrink-0 items-center justify-between border-b border-white/[0.04] bg-[#07070d]/60 px-5 backdrop-blur-2xl lg:px-7">
